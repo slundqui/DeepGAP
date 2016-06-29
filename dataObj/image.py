@@ -46,7 +46,7 @@ class imageObj(object):
                 random.seed(seed)
             random.shuffle(self.shuffleIdx)
         #This function will also set self.maxDim
-        #self.getMeanVar()
+        #self.getMean()
         if(self.resizeMethod=="crop"):
             pass
         elif(self.resizeMethod=="pad"):
@@ -58,6 +58,20 @@ class imageObj(object):
         else:
             print "Method ", resizeMethod, "not supported"
             assert(0)
+
+    ##Calculates the mean and standard deviation from the images
+    ##Will also calculate the max dimension of image
+    #def getMean(self):
+    #    s = np.array(0).astype(np.float64)
+    #    num = np.array(0).astype(np.float64)
+    #    for (i, f) in enumerate(self.imgFiles):
+    #        if(i % 100 == 0):
+    #            print "Progress: " + str(float(i)/len(self.imgFiles)) + ": " + str(i) + " out of " + str(len(self.imgFiles))
+    #        img = (imread(self.convertFilename(f)).astype(np.float32)/255)
+    #        s += np.sum(img)
+    #        num += np.array(img.size).astype(np.float64)
+    #    self.mean = s / num
+    #    print "img mean: ", self.mean
 
     #Function to resize image to inputShape
     def resizeImage(self, inImage):
@@ -116,7 +130,17 @@ class imageObj(object):
         if(image.ndim == 2):
              image = np.transpose(np.tile(image, [3, 1, 1]), [1, 2, 0])
         image = (self.resizeImage(image).astype(np.float32)/255)
-        image = (image-np.mean(image))/np.std(image)
+        #If image has alpha channel, remove that channel
+        if(image.shape[2] == 4):
+            image = image[:, :, 0:3]
+
+        #Normalize
+        if(self.normStd):
+            image = (image-np.mean(image))/np.std(image)
+        elif(self.mean):
+            image = image-self.mean
+        else:
+            image = image-np.mean(image)
         gt = np.zeros((self.numClasses))
         gt[self.getClassIdx(filename)] = 1
         return (image, gt)
@@ -133,7 +157,7 @@ class imageObj(object):
             print "Rewinding"
             self.imgIdx = 0
             if(self.doShuffle):
-                random.shuffle(range(self.numImages))
+                random.shuffle(self.shuffleIdx)
         return (outImg, outGt)
 
     ##Get all segments of current image. This is what evaluation calls for testing
@@ -161,6 +185,7 @@ class cifarObj(imageObj):
     inputShape = (32, 32, 3)
     numClasses = 10
     idxToName = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+    mean = None
     def getClassIdx(self, filename):
         return(int(filename.split('/')[-2]))
     #Cifar filename is itself
@@ -171,6 +196,7 @@ class imageNetObj(imageObj):
     #inputShape = (64, 128, 3)
     inputShape = (224, 224, 3)
     numClasses = 1000
+    mean = 0.44864434289 #Mean of training set
 
     def __init__(self, imgList, imgPrefix, metaFilename, useClassDir, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
         #Load metafile and store dict wnToIdx and list idxToName
@@ -178,6 +204,7 @@ class imageNetObj(imageObj):
         self.imgPrefix = imgPrefix
         self.useClassDir = useClassDir
         self.ext = ext
+        self.normStd = normStd
         #Call superclass constructor
         super(imageNetObj, self).__init__(imgList, resizeMethod, normStd, shuffle, skip, seed)
 
@@ -199,3 +226,11 @@ class imageNetObj(imageObj):
         gtIdx = self.wnToIdx[wnIdx]
         return gtIdx
 
+#if __name__ == "__main__":
+#    trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
+#    trainImagePrefix = "/nh/compneuro/Data/imageNet/CLS_LOC/ILSVRC2015/Data/CLS-LOC/train/"
+#    clsMeta = "/nh/compneuro/Data/imageNet/devkit/data/meta_clsloc.mat"
+#
+#    imgnet = imageNetObj(trainImageList, trainImagePrefix, clsMeta, useClassDir=True)
+#    imgnet.getMean()
+#

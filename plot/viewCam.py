@@ -7,11 +7,16 @@ import pdb
 def plotCam(outFilename, inImage, gtIdx, cam, idxs, vals, idxToName):
     (nyImage, nxImage, nfImage) = inImage.shape
     (numCam, nyCam, nxCam) = cam.shape
+    assert(nyImage%nyCam == 0)
+    assert(nxImage%nxCam == 0)
+
+    yFactor = nyImage/nyCam
+    xFactor = nxImage/nxCam
+
     numTotal = numCam + 1
     xTile = int(np.floor(np.sqrt(numTotal)))
     yTile = int(np.ceil(float(numTotal)/xTile))
-    resize_image = imresize(inImage, (nyCam, nxCam)).astype(np.float32)
-    norm_image = (resize_image - np.min(resize_image))/(np.max(resize_image) - np.min(resize_image))
+    norm_image = (inImage - np.min(inImage))/(np.max(inImage) - np.min(inImage))
 
     #Find max/min and set imshow values to that
     maxCam = np.max(cam)
@@ -30,7 +35,9 @@ def plotCam(outFilename, inImage, gtIdx, cam, idxs, vals, idxToName):
                 axarr[0, 0].set_title(strLabel)
             else:
                 if(camIdx < numCam):
-                    axx = axarr[y, x].imshow(cam[camIdx, :, :], cmap=colormap, vmax=maxCam, vmin=minCam)
+                    camImg = cam[camIdx, :, :]
+                    resizeCam = np.repeat(np.repeat(camImg, yFactor, axis=0), xFactor, axis=1)
+                    axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=0)
                     #Take only label after first comma
                     strLabel = idxToName[idxs[camIdx]].split(',')[0]
                     axarr[y, x].set_title(strLabel + ": " + str(vals[camIdx]))

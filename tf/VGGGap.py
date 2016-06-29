@@ -47,6 +47,7 @@ class VGGGap:
 
         self.progress = params['progress']
         self.idxToName = params['idxToName']
+        self.preTrain = params['preTrain']
 
     #Make approperiate directories if they don't exist
     def makeDirs(self):
@@ -73,9 +74,9 @@ class VGGGap:
                print "Done test eval"
            #Train
            if(i%self.savePeriod == 0):
-               self.trainModel(trainDataObj, save=True, plot=plot, pre=False)
+               self.trainModel(trainDataObj, save=True, plot=plot)
            else:
-               self.trainModel(trainDataObj, save=False, plot=plot, pre=False)
+               self.trainModel(trainDataObj, save=False, plot=plot)
 
 
 
@@ -174,18 +175,12 @@ class VGGGap:
 
             with tf.name_scope("Opt"):
                 #Define optimizer
-                #self.optimizerAll = tf.train.AdagradOptimizer(self.learningRate).minimize(self.loss)
-                #self.optimizerFC = tf.train.AdagradOptimizer(self.learningRate).minimize(self.loss,
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss)
-                #self.optimizerFC = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss,
-                #        var_list=[
-                #            self.W_fc1,
-                #            self.B_fc1,
-                #            self.W_fc2,
-                #            self.B_fc2,
-                #            self.W_fc3,
-                #            self.B_fc3]
-                #        )
+                self.optimizerPre = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss,
+                        var_list=[
+                            self.W_gap,
+                            ]
+                        )
 
             with tf.name_scope("Metric"):
                 self.correct = tf.equal(tf.argmax(self.gt, 1), tf.argmax(self.est, 1))
@@ -277,15 +272,15 @@ class VGGGap:
     #Trains model for numSteps
     #If pre is False, will train entire network
     #If pre is True, will train only fully connected network
-    def trainModel(self, dataObj, save, plot, pre=False):
+    def trainModel(self, dataObj, save, plot):
         #Define session
         for i in range(self.innerSteps):
             #Get data from dataObj
             data = dataObj.getData(self.batchSize)
             feedDict = {self.inputImage: data[0], self.gt: data[1]}
             #Run optimizer
-            if(pre):
-                self.sess.run(self.optimizerFC, feed_dict=feedDict)
+            if(self.preTrain):
+                self.sess.run(self.optimizerPre, feed_dict=feedDict)
             else:
                 self.sess.run(self.optimizerAll, feed_dict=feedDict)
             if(i%self.writeStep == 0):
