@@ -43,6 +43,9 @@ class VGGGap:
         self.device = params['device']
         self.batchSize = params['batchSize']
         self.learningRate = params['learningRate']
+        self.beta1 = params['beta1']
+        self.beta2 = params['beta2']
+        self.epsilon = params['epsilon']
         self.numClasses = params['numClasses']
 
         self.progress = params['progress']
@@ -66,7 +69,7 @@ class VGGGap:
            if(i%self.plotPeriod == 0):
                plot = True
            else:
-               plot=False
+               plot = False
            if(testDataObj):
                #Evaluate test frame, providing gt so that it writes to summary
                (evalData, gtData) = testDataObj.getData(self.batchSize)
@@ -161,7 +164,8 @@ class VGGGap:
             with tf.name_scope("GAP"):
                 self.h_gap = tf.reduce_mean(self.h_conv5_3, reduction_indices=[1, 2])
                 self.W_gap = weight_variable_xavier([512, self.numClasses], "w_gap", conv=False)
-                self.est = tf.nn.softmax(tf.matmul(self.h_gap, self.W_gap))
+                self.B_gap = bias_variable([self.numClasses], "b_gap")
+                self.est = tf.nn.softmax(tf.matmul(self.h_gap, self.W_gap)+self.B_gap)
 
             with tf.name_scope("CAM"):
                 self.h_reshape_gap = tf.reshape(self.h_conv5_3, [self.batchSize*self.h_conv5_shape[1]*self.h_conv5_shape[2], -1])
@@ -171,14 +175,16 @@ class VGGGap:
 
             with tf.name_scope("Loss"):
                 #Define loss
-                self.loss = tf.reduce_mean(-tf.reduce_sum(self.gt * tf.log(self.est), reduction_indices=[1]))
+                self.loss = tf.reduce_mean(-tf.reduce_sum(self.gt * tf.log(self.est+self.epsilon), reduction_indices=[1]))
 
             with tf.name_scope("Opt"):
                 #Define optimizer
-                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss)
-                self.optimizerPre = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss,
+                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss)
+                #self.optimizerAll = tf.train.MomentumOptimizer(self.learningRate, momentum=self.beta1).minimize(self.loss)
+                self.optimizerPre = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
                             self.W_gap,
+                            self.B_gap,
                             ]
                         )
 
@@ -187,7 +193,7 @@ class VGGGap:
                 self.accuracy = tf.reduce_mean(tf.cast(self.correct, tf.float32))
 
         #Cannot be on GPU
-        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=10)
+        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=5)
 
         #Summaries
         tf.scalar_summary('loss', self.loss, name="lossSum")
@@ -239,22 +245,33 @@ class VGGGap:
         tf.histogram_summary('w_conv5_3', self.W_conv5_3, name="w_conv5_3")
         tf.histogram_summary('b_conv5_3', self.B_conv5_3, name="b_conv5_3")
         tf.histogram_summary('w_gap', self.W_gap, name="w_gap")
+        tf.histogram_summary('b_gap', self.B_gap, name="w_gap")
 
         #tf.image_summary("cam", self.sortedCamImg, max_images=10)
         #tf.image_summary("input", self.inputImage, max_images=1)
 
-        #Define saver
+        ##Define saver
+        #v = tf.all_variables()
+        #load_v = [var for var in v if "w_gap" in var.name or "b_gap" in var.name]
+        ##Load specific variables, save all variables
+        #self.loader = tf.train.Saver(var_list=load_v)
+
+        self.loader = tf.train.Saver()
         self.saver = tf.train.Saver()
 
         #Initialize
+        self.initSess()
         #Load checkpoint if flag set
         if(self.load):
            self.loadModel()
-           ##We only load weights, so we need to initialize A
-           #un_vars = list(tf.get_variable(name) for name in self.sess.run(tf.report_uninitialized_variables(tf.all_variables())))
-           #tf.initialize_variables(un_vars)
-        else:
-           self.initSess()
+
+    def guarantee_initialized_variables(self, session, list_of_variables = None):
+        if list_of_variables is None:
+            list_of_variables = tf.all_variables()
+        uninitialized_variables = list(tf.get_variable(name) for name in
+                                       session.run(tf.report_uninitialized_variables(list_of_variables)))
+        session.run(tf.initialize_variables(uninitialized_variables))
+        return unintialized_variables
 
     #Initializes session.
     def initSess(self):
@@ -298,14 +315,16 @@ class VGGGap:
 
 
     def evalAndPlotCam(self, feedDict, filename):
+        print "Plotting"
         #We need feed_dict here
         cam = self.sess.run(self.cam, feed_dict=feedDict)
         img = feedDict[self.inputImage][0, :, :, :]
         gtIdx = np.argmax(feedDict[self.gt][0, :])
         camIdxs = self.sess.run(self.eval_idx, feed_dict=feedDict)[0, :]
         camVals = self.sess.run(self.eval_vals, feed_dict=feedDict)[0, :]
+        np_w_gap = self.sess.run(self.W_gap, feed_dict=feedDict)
         sortedCam = cam[0, camIdxs, :, :]
-        plotCam(filename, img, gtIdx, sortedCam, camIdxs, camVals, self.idxToName)
+        plotCam(filename, img, gtIdx, sortedCam, camIdxs, camVals, self.idxToName, np_w_gap)
 
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set
@@ -380,6 +399,6 @@ class VGGGap:
 
     #Loads a tf checkpoint
     def loadModel(self):
-        self.saver.restore(self.sess, self.loadFile)
+        self.loader.restore(self.sess, self.loadFile)
         print("Model %s loaded" % self.loadFile)
 
