@@ -4,10 +4,10 @@ import tensorflow as tf
 from loadVgg import loadWeights
 from utils import *
 import os
-from plot.viewCam import plotCam
+from plot.viewCam import plotDetCam
 #import matplotlib.pyplot as plt
 
-class VGGGap:
+class VGGDetGap:
 
     #Global timestep
     timestep = 0
@@ -96,7 +96,8 @@ class VGGGap:
             with tf.name_scope("inputOps"):
                 #Get convolution variables as placeholders
                 self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2]], "inputImage")
-                self.gt = node_variable([self.batchSize, self.numClasses], "gt")
+                self.gt = node_variable([self.batchSize, 14, 14, 201], "gt")
+                self.softmax_gt = pixelSoftmax(self.gt)
                 #Model variables for convolutions
 
             with tf.name_scope("Conv1Ops"):
@@ -169,13 +170,15 @@ class VGGGap:
 
             with tf.name_scope("CAM"):
                 self.h_reshape_gap = tf.reshape(self.h_conv5_3, [self.batchSize*self.h_conv5_shape[1]*self.h_conv5_shape[2], -1])
-                self.flat_cam = tf.matmul(self.h_reshape_gap, self.W_gap)
+                self.flat_cam = tf.matmul(self.h_reshape_gap, self.W_gap) + self.B_gap
                 self.reshape_cam = tf.reshape(self.flat_cam, [self.batchSize, self.h_conv5_shape[1], self.h_conv5_shape[2], -1])
-                self.cam = tf.transpose(self.reshape_cam, [0, 3, 1, 2])
+                self.softmax_cam = pixelSoftmax(self.reshape_cam)
+                self.vis_cam = tf.transpose(self.softmax_cam, [0, 3, 1, 2])
 
             with tf.name_scope("Loss"):
                 #Define loss
-                self.loss = tf.reduce_mean(-tf.reduce_sum(self.gt * tf.log(self.est+self.epsilon), reduction_indices=[1]))
+                #self.loss = tf.reduce_mean(-tf.reduce_sum(self.gt * tf.log(self.est+self.epsilon), reduction_indices=[1]))
+                self.loss = tf.reduce_mean(-tf.reduce_sum(self.softmax_gt * tf.log(self.softmax_cam+self.epsilon), reduction_indices=[3]))
 
             with tf.name_scope("Opt"):
                 #Define optimizer
@@ -189,11 +192,11 @@ class VGGGap:
                         )
 
             with tf.name_scope("Metric"):
-                self.correct = tf.equal(tf.argmax(self.gt, 1), tf.argmax(self.est, 1))
+                self.correct = tf.equal(tf.argmax(tf.reduce_mean(self.gt, reduction_indices=[1, 2]), 1), tf.argmax(self.est, 1))
                 self.accuracy = tf.reduce_mean(tf.cast(self.correct, tf.float32))
 
         #Cannot be on GPU
-        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=11)
+        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=5)
 
         #Summaries
         tf.scalar_summary('loss', self.loss, name="lossSum")
@@ -245,18 +248,18 @@ class VGGGap:
         tf.histogram_summary('w_conv5_3', self.W_conv5_3, name="w_conv5_3")
         tf.histogram_summary('b_conv5_3', self.B_conv5_3, name="b_conv5_3")
         tf.histogram_summary('w_gap', self.W_gap, name="w_gap")
-        tf.histogram_summary('b_gap', self.B_gap, name="w_gap")
+        tf.histogram_summary('b_gap', self.B_gap, name="b_gap")
 
         #tf.image_summary("cam", self.sortedCamImg, max_images=10)
         #tf.image_summary("input", self.inputImage, max_images=1)
 
         ##Define saver
-        #v = tf.all_variables()
-        #load_v = [var for var in v if "w_gap" in var.name or "b_gap" in var.name]
+        v = tf.all_variables()
+        load_v = [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
         ##Load specific variables, save all variables
-        #self.loader = tf.train.Saver(var_list=load_v)
+        self.loader = tf.train.Saver(var_list=load_v)
 
-        self.loader = tf.train.Saver()
+        #self.loader = tf.train.Saver()
         self.saver = tf.train.Saver()
 
         #Initialize
@@ -317,23 +320,23 @@ class VGGGap:
     def evalAndPlotCam(self, feedDict, prefix):
         print "Plotting"
         #We need feed_dict here
-        cam = self.sess.run(self.cam, feed_dict=feedDict)
+        cam = self.sess.run(self.vis_cam, feed_dict=feedDict)
         img = feedDict[self.inputImage]
         if self.gt in feedDict:
-            gtIdx = np.argmax(feedDict[self.gt], axis=1)
+            gt = feedDict[self.gt]
         else:
-            gtIdx = None
+            gt = None
         camIdxs = self.sess.run(self.eval_idx, feed_dict=feedDict)
         camVals = self.sess.run(self.eval_vals, feed_dict=feedDict)
         np_w_gap = self.sess.run(self.W_gap, feed_dict=feedDict)
-        plotCam(prefix, img, gtIdx, cam, camIdxs, camVals, self.idxToName, np_w_gap)
+        plotDetCam(prefix, img, gt, cam, camIdxs, camVals, self.idxToName, np_w_gap)
 
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set
     def evalModel(self, inData, inGt = None, plot=True):
         (numData, ny, nx, nf) = inData.shape
         if(inGt != None):
-            (numGt, drop) = inGt.shape
+            numGt = inGt.shape[0]
             assert(numData == numGt)
             feedDict = {self.inputImage: inData, self.gt: inGt}
         else:

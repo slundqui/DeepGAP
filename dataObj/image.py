@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import pdb
 import random
 from imagenet_clsloc_meta import loadMeta
+#from xml.dom import minidom
+import xml.etree.ElementTree as ET
+from os.path import isfile
 
 def readList(filename):
     f = open(filename, 'r')
@@ -32,14 +35,21 @@ class imageObj(object):
     #"max" will find the max dimension of the list of images, and pad the surrounding area
     #Additionally, if inMaxDim is set with resizeMethod of "max", it will explicitly set
     #the max dimension to inMaxDim
-    def __init__(self, imgList, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+    def __init__(self, imgList, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True):
         self.resizeMethod=resizeMethod
-        self.imgFiles = readList(imgList)
+        self.normStd = normStd
+        if(imgList.split(".")[-1] == "txt"):
+            self.imgFiles = readList(imgList)
+        else:
+            self.imgFiles = [imgList]
+
         self.numImages = len(self.imgFiles)
         self.shuffleIdx = range(self.numImages)
         self.doShuffle = shuffle
         self.skip = skip
-        if(shuffle):
+        self.getGT = getGT
+        self.gtShape = [self.numClasses]
+        if(self.doShuffle):
             #Initialize random seed
             if(seed):
                 #Seed random
@@ -141,15 +151,23 @@ class imageObj(object):
             image = image-self.mean
         else:
             image = image-np.mean(image)
-        gt = np.zeros((self.numClasses))
+
+        if(self.getGT):
+            gt = self.genGT(filename)
+            return (image, gt)
+        else:
+            return image
+
+    def genGT(self, filename):
+        gt = np.zeros(self.gtShape)
         gt[self.getClassIdx(filename)] = 1
-        return (image, gt)
+        return gt
 
     #Grabs the next image in the list. Will shuffle images when rewinding
     def nextImage(self):
         startIdx = self.shuffleIdx[self.imgIdx]
         imgFile = self.imgFiles[startIdx]
-        (outImg, outGt) = self.readImage(imgFile)
+        outData = self.readImage(imgFile)
         #Update imgIdx
         self.imgIdx = self.imgIdx + self.skip
 
@@ -158,7 +176,7 @@ class imageObj(object):
             self.imgIdx = 0
             if(self.doShuffle):
                 random.shuffle(self.shuffleIdx)
-        return (outImg, outGt)
+        return outData
 
     ##Get all segments of current image. This is what evaluation calls for testing
     #def allImages(self):
@@ -174,12 +192,21 @@ class imageObj(object):
     #This is what TF object calls to get images for training
     def getData(self, numExample):
         outData = np.zeros((numExample, self.inputShape[0], self.inputShape[1], self.inputShape[2]))
-        outGt = np.zeros((numExample, self.numClasses))
+        if(self.getGT):
+            shape = [numExample]
+            shape.extend(self.gtShape)
+            outGt = np.zeros(shape)
         for i in range(numExample):
-            (data, gt) = self.nextImage()
-            outData[i, :, :, :] = data
-            outGt[i, :] = gt
-        return (outData, outGt)
+            data = self.nextImage()
+            if(self.getGT):
+                outData[i, :, :, :] = data[0]
+                outGt[i] = data[1]
+            else:
+                outData[i, :, :, :] = data
+        if(self.getGT):
+            return (outData, outGt)
+        else:
+            return outData
 
 class cifarObj(imageObj):
     inputShape = (32, 32, 3)
@@ -201,6 +228,8 @@ class imageNetObj(imageObj):
     def __init__(self, imgList, imgPrefix, metaFilename, useClassDir, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
         #Load metafile and store dict wnToIdx and list idxToName
         (self.wnToIdx, self.idxToName) = loadMeta(metaFilename)
+        #Add distractor to idxToName
+        self.idxToName.append("distractor")
         self.imgPrefix = imgPrefix
         self.useClassDir = useClassDir
         self.ext = ext
@@ -225,6 +254,118 @@ class imageNetObj(imageObj):
         #Convert wnIdx to gtIdx
         gtIdx = self.wnToIdx[wnIdx]
         return gtIdx
+
+class imageNetDetObj(imageNetObj):
+    numClasses = 200
+
+    def __init__(self, imgList, imgPrefix, gtPrefix, metaFilename, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+        #Load metafile and store dict wnToIdx and list idxToName
+        self.imgPrefix = imgPrefix
+        self.gtPrefix = gtPrefix
+        #Call superclass constructor
+        super(imageNetDetObj, self).__init__(imgList, imgPrefix, metaFilename, False, ext, resizeMethod, normStd, shuffle, skip, seed)
+        #Class 200 is the distractor class
+        self.gtShape = [14, 14, self.numClasses+1]
+
+    #Must append prefix to filenames and remove image idx
+    def convertFilename(self, filename):
+        #Split filename into file and ground truth
+        suffix = filename.split(" ")[0]
+        #Depending on if useClassDir is set, we append the fn to imgPrefix with or without the wnIdx directory
+        outFilename = self.imgPrefix + "/" + suffix + self.ext
+        return outFilename
+
+    def getClassIdx(self, filename):
+        #This should never get called by this class
+        assert(0)
+
+    def genGT(self, filename):
+        assert(len(self.gtShape) == 3)
+        gt = np.zeros(self.gtShape)
+        #Set default distractor class
+        gt[:, :, -1] = 1
+
+        #Split filename into file and ground truth
+        suffix = filename.split(" ")[0]
+        gtFilename = self.gtPrefix + "/" + suffix + ".xml"
+
+        #If file does not exist, we mark it as a distractor
+        if(not isfile(gtFilename)):
+            return gt
+
+        #Parse xml file
+        tree = ET.parse(gtFilename)
+        root = tree.getroot()
+
+        #Get size of image
+        nx = int(root.find('size').find('width').text)
+        ny = int(root.find('size').find('height').text)
+        #Get scale factor and crop/pad factor
+        #offset is in terms before the resize
+        if(self.resizeMethod=="crop"):
+            if(nx > ny):
+                scaleFactor = float(self.gtShape[0])/ny
+                targetNx = int(round(nx * scaleFactor))
+                xOffset = int(round(float(self.gtShape[1] - targetNx)/2))
+                yOffset = 0
+            else:
+                scaleFactor = float(self.gtShape[1])/nx
+                targetNy = int(round(ny * scaleFactor))
+                xOffset = 0
+                yOffset = int(round(float(self.gtShape[0] - targetNy)/2))
+        elif(self.resizeMethod=="pad"):
+            if(nx > ny):
+                scaleFactor = float(self.gtShape[1])/nx
+                targetNy = int(round(ny*scaleFactor))
+                xOffset = 0
+                yOffset = int(round(float(self.gtShape[0]-targetNy)/2))
+            else:
+                scaleFactor = float(self.gtShape[0])/ny
+                targetNx = int(round(nx*scaleFactor))
+                xOffset= int(round(float(self.gtShape[1]-targetNx)/2))
+                yOffset = 0
+        else:
+            assert(0)
+        #Get all objects
+        objs = root.findall('object')
+        for obj in objs:
+            wnIdx = obj.find('name').text
+            xmin = int(obj.find('bndbox').find('xmin').text)
+            xmax = int(obj.find('bndbox').find('xmax').text)
+            ymin = int(obj.find('bndbox').find('ymin').text)
+            ymax = int(obj.find('bndbox').find('ymax').text)
+            #Add offset and scale
+            scale_xmin = int(round(xmin*scaleFactor)+xOffset)
+            scale_xmax = int(round(xmax*scaleFactor)+xOffset)
+            scale_ymin = int(round(ymin*scaleFactor)+yOffset)
+            scale_ymax = int(round(ymax*scaleFactor)+yOffset)
+            #Check bounds
+            #We only need to check min bounds, because numpy indexing auto truncates the upper dimension
+            if(scale_xmin < 0):
+                scale_xmin = 0
+            if(scale_ymin < 0):
+                scale_ymin = 0
+
+            #Convert wnIdx to gtIdx
+            gtIdx = self.wnToIdx[wnIdx]
+            #Assign that index to be 1's, and take out distractor class
+            gt[scale_ymin:scale_ymax, scale_xmin:scale_xmax, gtIdx] = 1
+            gt[scale_ymin:scale_ymax, scale_xmin:scale_xmax, -1] = 0
+
+        return gt
+
+class evalObj(imageObj):
+    inputShape = (224, 224, 3)
+    mean = None
+    def __init__(self, imgFile, metaFilename, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+        (self.wnToIdx, self.idxToName) = loadMeta(metaFilename)
+        super(evalObj, self).__init__(imgFile, resizeMethod, normStd, shuffle, skip, seed, getGT=False)
+    def convertFilename(self, filename):
+        return filename
+
+
+
+
 
 #if __name__ == "__main__":
 #    trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"

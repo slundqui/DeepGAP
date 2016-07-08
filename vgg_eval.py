@@ -1,28 +1,32 @@
 import matplotlib
 matplotlib.use('Agg')
-from dataObj.image import imageNetObj
+from dataObj.image import evalObj
 from tf.VGGGap import VGGGap
 import numpy as np
 import pdb
+import sys
 
 #Paths to list of filenames
-trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
-testImageList = "/home/slundquist/mountData/datasets/imagenet/val_cls.txt"
+if(len(sys.argv) != 2):
+    print "Usage: python vgg_eval.py <filename>"
+    assert(0)
 
-trainImagePrefix = "/shared/imageNet/CLS_LOC/ILSVRC2015/Data/CLS-LOC/train/"
-testImagePrefix =  "/shared/imageNet/CLS_LOC/ILSVRC2015/Data/CLS-LOC/val/"
+inImageList = sys.argv[1]
+
+
+#trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
+#testImageList = "/home/slundquist/mountData/datasets/imagenet/val_cls.txt"
 
 clsMeta = "/shared/imageNet/devkit/data/meta_clsloc.mat"
 
 #Get object from which tensorflow will pull data from
-trainDataObj = imageNetObj(trainImageList, trainImagePrefix, clsMeta, useClassDir = True, resizeMethod="crop", normStd=False)
-testDataObj = imageNetObj(testImageList, testImagePrefix, clsMeta, useClassDir = False, resizeMethod="crop", normStd=False)
+evalDataObj = evalObj(inImageList, clsMeta, resizeMethod="crop", normStd=False)
 
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/imagenet_vgg/",
+    'runDir':          "/imagenet_eval/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -47,23 +51,24 @@ params = {
     'outerSteps':      10000000, #1000000,
     'innerSteps':      100, #300,
     #Batch size
-    'batchSize':       8,
+    'batchSize':       1,
     #Learning rate for optimizer
     'learningRate':    1e-4,
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,
-    'numClasses': trainDataObj.numClasses,
-    'idxToName': trainDataObj.idxToName,
+    'numClasses': 1000,
+    'idxToName': evalDataObj.idxToName,
     'preTrain': False,
 }
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = VGGGap(params, trainDataObj.inputShape)
+tfObj = VGGGap(params, evalDataObj.inputShape)
 
 print "Done init"
-tfObj.runModel(trainDataObj, testDataObj = testDataObj)
+tfObj.evalModel(evalDataObj.getData(1), plot=True)
+
 print "Done run"
 
 tfObj.closeSess()

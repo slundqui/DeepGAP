@@ -3,6 +3,13 @@ import tensorflow as tf
 import pdb
 from scipy import sparse
 
+def pixelSoftmax(inNode):
+    exp = tf.exp(inNode)
+    #Calculate sum across feature dimension
+    norm = tf.reduce_sum(exp, reduction_indices=3, keep_dims=True)
+    return tf.div(exp, norm)
+
+
 def convertToSparse5d(m):
     [nb, nt, ny, nx, nf] = m.shape
     mreshape = np.reshape(m, (nb, nt*ny*nx*nf))
