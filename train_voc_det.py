@@ -2,32 +2,30 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from dataObj.image import imageNetDetObj
+from dataObj.image import vocDetObj
 from tf.VGGDetGap import VGGDetGap
 import numpy as np
 import pdb
 
 #Paths to list of filenames
-trainImageList = "/shared/imageNet/DET/ILSVRC2015/ImageSets/DET/train.txt"
-testImageList = "/shared/imageNet/DET/ILSVRC2015/ImageSets/DET/val.txt"
+trainImageList = "/shared/VOCdevkit/VOC2007/ImageSets/Main/train_trainval.txt"
+testImageList = "/shared/VOCdevkit/VOC2007/ImageSets/Main/test.txt"
 
-trainImagePrefix = "/shared/imageNet/DET/ILSVRC2015/Data/DET/train/"
-testImagePrefix =  "/shared/imageNet/DET/ILSVRC2015/Data/DET/val/"
+trainImagePrefix = "/shared/VOCdevkit/VOC2007/JPEGImages/"
+testImagePrefix = "/shared/VOCdevkit/VOC2007/JPEGImages/"
 
-trainGTPrefix = "/shared/imageNet/DET/ILSVRC2015/Annotations/DET/train/"
-testGTPrefix =  "/shared/imageNet/DET/ILSVRC2015/Annotations/DET/val/"
-
-clsMeta = "/shared/imageNet/devkit/data/meta_det.mat"
+trainGTPrefix = "/shared/VOCdevkit/VOC2007/Annotations/"
+testGTPrefix =  "/shared/VOCdevkit/VOC2007/Annotations/"
 
 #Get object from which tensorflow will pull data from
-trainDataObj = imageNetDetObj(trainImageList, trainImagePrefix, trainGTPrefix, clsMeta, resizeMethod="crop", normStd=False)
-testDataObj = imageNetDetObj(testImageList, testImagePrefix, testGTPrefix, clsMeta, resizeMethod="crop", normStd=False)
+trainDataObj = vocDetObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False)
+testDataObj = vocDetObj(testImageList, testImagePrefix, testGTPrefix, resizeMethod="crop", normStd=False)
 
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/imagenet_det_vgg/",
+    'runDir':          "/voc_det_vgg/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -42,14 +40,14 @@ params = {
     'writeStep':       100, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/voc_det_pre.ckpt",
     #Input vgg file for preloaded weights
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      10000000, #1000000,
+    'outerSteps':      1000, #1000000,
     'innerSteps':      100, #300,
     #Batch size
     'batchSize':       8,
@@ -57,6 +55,7 @@ params = {
     'learningRate':    1e-4,
     'beta1' :          .9,
     'beta2' :          .999,
+    'regStrength':     .001,
     'epsilon':         1e-8,
     'numClasses': trainDataObj.numClasses+1,
     'idxToName': trainDataObj.idxToName,

@@ -4,11 +4,10 @@ import pdb
 from scipy import sparse
 
 def pixelSoftmax(inNode):
-    exp = tf.exp(inNode)
+    exp = tf.exp(inNode - tf.reduce_max(inNode, reduction_indices=3, keep_dims=True))
     #Calculate sum across feature dimension
     norm = tf.reduce_sum(exp, reduction_indices=3, keep_dims=True)
     return tf.div(exp, norm)
-
 
 def convertToSparse5d(m):
     [nb, nt, ny, nx, nf] = m.shape

@@ -4,22 +4,20 @@ import tensorflow as tf
 from loadVgg import loadWeights
 from utils import *
 import os
-from plot.viewCam import plotCam
+from plot.viewCam import plotDetCam
 from base import TFObj
 #import matplotlib.pyplot as plt
 
-class VGGGap(TFObj):
+class VGG(TFObj):
 
-    #Global timestep
-    timestep = 0
-    plotTimestep = 0
-
+    #Sets dictionary of params to member variables
     def loadParams(self, params):
-        super(VGGDetGap, self).loadParams(params)
+        super(VGG, self).loadParams(params)
 
         self.beta1 = params['beta1']
         self.beta2 = params['beta2']
         self.epsilon = params['epsilon']
+        self.regStrength = params['regStrength']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -35,7 +33,6 @@ class VGGGap(TFObj):
                 #Get convolution variables as placeholders
                 self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2]], "inputImage")
                 self.gt = node_variable([self.batchSize, self.numClasses], "gt")
-                #Model variables for convolutions
 
             with tf.name_scope("Conv1Ops"):
                 self.W_conv1_1 = weight_variable_fromnp(npWeights["conv1_1_w"], "w_conv1_1")
@@ -95,34 +92,46 @@ class VGGGap(TFObj):
                 self.h_conv5_1 = tf.nn.relu(conv2d(self.h_pool4, self.W_conv5_1, "conv5_1") + self.B_conv5_1)
                 self.h_conv5_2 = tf.nn.relu(conv2d(self.h_conv5_1, self.W_conv5_2, "conv5_2") + self.B_conv5_2)
                 self.h_conv5_3 = tf.nn.relu(conv2d(self.h_conv5_2, self.W_conv5_3, "conv5_2") + self.B_conv5_3)
+                self.h_pool5 = maxpool_2x2(self.h_conv5_3, "pool5")
 
-            #16 comes from 4 2x2 pooling
-            self.h_conv5_shape = [self.batchSize, inputShape[0]/16, inputShape[1]/16, 512]
-            assert(inputShape[0]/16 == 14)
-            with tf.name_scope("GAP"):
-                self.h_gap = tf.reduce_mean(self.h_conv5_3, reduction_indices=[1, 2])
-                self.W_gap = weight_variable_xavier([512, self.numClasses], "w_gap", conv=False)
-                self.B_gap = bias_variable([self.numClasses], "b_gap")
-                self.est = tf.nn.softmax(tf.matmul(self.h_gap, self.W_gap)+self.B_gap)
+            with tf.name_scope("FC"):
+                #Dropout var
+                self.keep_prob = tf.placeholder(tf.float32)
 
-            with tf.name_scope("CAM"):
-                self.h_reshape_gap = tf.reshape(self.h_conv5_3, [self.batchSize*self.h_conv5_shape[1]*self.h_conv5_shape[2], -1])
-                self.flat_cam = tf.matmul(self.h_reshape_gap, self.W_gap)
-                self.reshape_cam = tf.reshape(self.flat_cam, [self.batchSize, self.h_conv5_shape[1], self.h_conv5_shape[2], -1])
-                self.cam = tf.transpose(self.reshape_cam, [0, 3, 1, 2])
+                self.W_fc6 = weight_variable_xavier([7*7*512, 2048], "w_fc6")
+                self.B_fc6 = bias_variable([2048], "b_fc6")
+                self.W_fc7 = weight_variable_xavier([2048, 2048], "w_fc7")
+                self.B_fc7 = bias_variable([2048], "b_fc7")
+                self.W_fc8 = weight_variable_xavier([2048, 20], "w_fc8")
+                self.B_fc8 = bias_variable([20], "b_fc8")
+
+                h_pool5_flat = tf.reshape(self.h_pool5, [self.batchSize, 7*7*512])
+                self.h_fc6 = tf.nn.relu(tf.matmul(h_pool5_flat, self.W_fc6, name="fc6") + self.B_fc6, "fc6_relu")
+                self.drop_h_fc6 = tf.nn.dropout(self.h_fc6, self.keep_prob)
+
+                self.h_fc7 = tf.nn.relu(tf.matmul(self.drop_h_fc6, self.W_fc7, name="fc7") + self.B_fc7, "fc7_relu")
+                self.drop_h_fc7 = tf.nn.dropout(self.h_fc7, self.keep_prob)
+
+                self.est = tf.nn.softmax(tf.matmul(self.drop_h_fc7, self.W_fc8, name="fc8") + self.B_fc8, "fc8_relu")
 
             with tf.name_scope("Loss"):
                 #Define loss
                 self.loss = tf.reduce_mean(-tf.reduce_sum(self.gt * tf.log(self.est+self.epsilon), reduction_indices=[1]))
+                self.regLoss = self.loss + self.regStrength * tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()])
+                self.nan_check_loss = tf.verify_tensor_all_finite(self.loss, msg="check_nan")
 
             with tf.name_scope("Opt"):
                 #Define optimizer
-                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss)
+                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.regLoss)
                 #self.optimizerAll = tf.train.MomentumOptimizer(self.learningRate, momentum=self.beta1).minimize(self.loss)
                 self.optimizerPre = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
-                            self.W_gap,
-                            self.B_gap,
+                            self.W_fc6,
+                            self.B_fc6,
+                            self.W_fc7,
+                            self.B_fc7,
+                            self.W_fc8,
+                            self.B_fc8,
                             ]
                         )
 
@@ -131,63 +140,68 @@ class VGGGap(TFObj):
                 self.accuracy = tf.reduce_mean(tf.cast(self.correct, tf.float32))
 
         #Cannot be on GPU
-        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=11)
+        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=5)
 
         #Summaries
         tf.scalar_summary('loss', self.loss, name="lossSum")
         tf.scalar_summary('accuracy', self.accuracy, name="accSum")
 
-        tf.histogram_summary('input', self.inputImage, name="image")
-        tf.histogram_summary('gt', self.gt, name="gt")
+        tf.histogram_summary('input', self.inputImage, name="image_vis")
+        tf.histogram_summary('gt', self.gt, name="gt_vis")
         #Conv layer histograms
-        tf.histogram_summary('conv1_1', self.h_conv1_1, name="conv1_1")
-        tf.histogram_summary('conv1_2', self.h_conv1_2, name="conv1_2")
-        tf.histogram_summary('conv2_1', self.h_conv2_1, name="conv2_1")
-        tf.histogram_summary('conv2_2', self.h_conv2_2, name="conv2_2")
-        tf.histogram_summary('conv3_1', self.h_conv3_1, name="conv3_1")
-        tf.histogram_summary('conv3_2', self.h_conv3_2, name="conv3_2")
-        tf.histogram_summary('conv3_3', self.h_conv3_3, name="conv3_3")
-        tf.histogram_summary('conv4_1', self.h_conv4_1, name="conv4_1")
-        tf.histogram_summary('conv4_2', self.h_conv4_2, name="conv4_2")
-        tf.histogram_summary('conv4_3', self.h_conv4_3, name="conv4_3")
-        tf.histogram_summary('conv5_1', self.h_conv5_1, name="conv5_1")
-        tf.histogram_summary('conv5_2', self.h_conv5_2, name="conv5_2")
-        tf.histogram_summary('conv5_3', self.h_conv5_3, name="conv5_3")
-        tf.histogram_summary('gap', self.h_gap, name="gap")
-        tf.histogram_summary('est', self.est, name="est")
+        tf.histogram_summary('conv1_1', self.h_conv1_1, name="conv1_1_vis")
+        tf.histogram_summary('conv1_2', self.h_conv1_2, name="conv1_2_vis")
+        tf.histogram_summary('conv2_1', self.h_conv2_1, name="conv2_1_vis")
+        tf.histogram_summary('conv2_2', self.h_conv2_2, name="conv2_2_vis")
+        tf.histogram_summary('conv3_1', self.h_conv3_1, name="conv3_1_vis")
+        tf.histogram_summary('conv3_2', self.h_conv3_2, name="conv3_2_vis")
+        tf.histogram_summary('conv3_3', self.h_conv3_3, name="conv3_3_vis")
+        tf.histogram_summary('conv4_1', self.h_conv4_1, name="conv4_1_vis")
+        tf.histogram_summary('conv4_2', self.h_conv4_2, name="conv4_2_vis")
+        tf.histogram_summary('conv4_3', self.h_conv4_3, name="conv4_3_vis")
+        tf.histogram_summary('conv5_1', self.h_conv5_1, name="conv5_1_vis")
+        tf.histogram_summary('conv5_2', self.h_conv5_2, name="conv5_2_vis")
+        tf.histogram_summary('conv5_3', self.h_conv5_3, name="conv5_3_vis")
+        tf.histogram_summary('fc6', self.h_fc6, name="fc6_vis")
+        tf.histogram_summary('fc7', self.h_fc7, name="fc7_vis")
+        tf.histogram_summary('est', self.est, name="est_vis")
         #Weight and bias hists
-        tf.histogram_summary('w_conv1_1', self.W_conv1_1, name="w_conv1_1")
-        tf.histogram_summary('b_conv1_1', self.B_conv1_1, name="b_conv1_1")
-        tf.histogram_summary('w_conv1_2', self.W_conv1_2, name="w_conv1_2")
-        tf.histogram_summary('b_conv1_2', self.B_conv1_2, name="b_conv1_2")
-        tf.histogram_summary('w_conv2_1', self.W_conv2_1, name="w_conv2_1")
-        tf.histogram_summary('b_conv2_1', self.B_conv2_1, name="b_conv2_1")
-        tf.histogram_summary('w_conv2_2', self.W_conv2_2, name="w_conv2_2")
-        tf.histogram_summary('b_conv2_2', self.B_conv2_2, name="b_conv2_2")
-        tf.histogram_summary('w_conv3_1', self.W_conv3_1, name="w_conv3_1")
-        tf.histogram_summary('b_conv3_1', self.B_conv3_1, name="b_conv3_1")
-        tf.histogram_summary('w_conv3_2', self.W_conv3_2, name="w_conv3_2")
-        tf.histogram_summary('b_conv3_2', self.B_conv3_2, name="b_conv3_2")
-        tf.histogram_summary('w_conv3_3', self.W_conv3_3, name="w_conv3_3")
-        tf.histogram_summary('b_conv3_3', self.B_conv3_3, name="b_conv3_3")
-        tf.histogram_summary('w_conv4_1', self.W_conv4_1, name="w_conv4_1")
-        tf.histogram_summary('b_conv4_1', self.B_conv4_1, name="b_conv4_1")
-        tf.histogram_summary('w_conv4_2', self.W_conv4_2, name="w_conv4_2")
-        tf.histogram_summary('b_conv4_2', self.B_conv4_2, name="b_conv4_2")
-        tf.histogram_summary('w_conv4_3', self.W_conv4_3, name="w_conv4_3")
-        tf.histogram_summary('b_conv4_3', self.B_conv4_3, name="b_conv4_3")
-        tf.histogram_summary('w_conv5_1', self.W_conv5_1, name="w_conv5_1")
-        tf.histogram_summary('b_conv5_1', self.B_conv5_1, name="b_conv5_1")
-        tf.histogram_summary('w_conv5_2', self.W_conv5_2, name="w_conv5_2")
-        tf.histogram_summary('b_conv5_2', self.B_conv5_2, name="b_conv5_2")
-        tf.histogram_summary('w_conv5_3', self.W_conv5_3, name="w_conv5_3")
-        tf.histogram_summary('b_conv5_3', self.B_conv5_3, name="b_conv5_3")
-        tf.histogram_summary('w_gap', self.W_gap, name="w_gap")
-        tf.histogram_summary('b_gap', self.B_gap, name="w_gap")
+        tf.histogram_summary('w_conv1_1', self.W_conv1_1, name="w_conv1_1_vis")
+        tf.histogram_summary('b_conv1_1', self.B_conv1_1, name="b_conv1_1_vis")
+        tf.histogram_summary('w_conv1_2', self.W_conv1_2, name="w_conv1_2_vis")
+        tf.histogram_summary('b_conv1_2', self.B_conv1_2, name="b_conv1_2_vis")
+        tf.histogram_summary('w_conv2_1', self.W_conv2_1, name="w_conv2_1_vis")
+        tf.histogram_summary('b_conv2_1', self.B_conv2_1, name="b_conv2_1_vis")
+        tf.histogram_summary('w_conv2_2', self.W_conv2_2, name="w_conv2_2_vis")
+        tf.histogram_summary('b_conv2_2', self.B_conv2_2, name="b_conv2_2_vis")
+        tf.histogram_summary('w_conv3_1', self.W_conv3_1, name="w_conv3_1_vis")
+        tf.histogram_summary('b_conv3_1', self.B_conv3_1, name="b_conv3_1_vis")
+        tf.histogram_summary('w_conv3_2', self.W_conv3_2, name="w_conv3_2_vis")
+        tf.histogram_summary('b_conv3_2', self.B_conv3_2, name="b_conv3_2_vis")
+        tf.histogram_summary('w_conv3_3', self.W_conv3_3, name="w_conv3_3_vis")
+        tf.histogram_summary('b_conv3_3', self.B_conv3_3, name="b_conv3_3_vis")
+        tf.histogram_summary('w_conv4_1', self.W_conv4_1, name="w_conv4_1_vis")
+        tf.histogram_summary('b_conv4_1', self.B_conv4_1, name="b_conv4_1_vis")
+        tf.histogram_summary('w_conv4_2', self.W_conv4_2, name="w_conv4_2_vis")
+        tf.histogram_summary('b_conv4_2', self.B_conv4_2, name="b_conv4_2_vis")
+        tf.histogram_summary('w_conv4_3', self.W_conv4_3, name="w_conv4_3_vis")
+        tf.histogram_summary('b_conv4_3', self.B_conv4_3, name="b_conv4_3_vis")
+        tf.histogram_summary('w_conv5_1', self.W_conv5_1, name="w_conv5_1_vis")
+        tf.histogram_summary('b_conv5_1', self.B_conv5_1, name="b_conv5_1_vis")
+        tf.histogram_summary('w_conv5_2', self.W_conv5_2, name="w_conv5_2_vis")
+        tf.histogram_summary('b_conv5_2', self.B_conv5_2, name="b_conv5_2_vis")
+        tf.histogram_summary('w_conv5_3', self.W_conv5_3, name="w_conv5_3_vis")
+        tf.histogram_summary('b_conv5_3', self.B_conv5_3, name="b_conv5_3_vis")
+        tf.histogram_summary('w_fc6', self.W_fc6, name="w_fc6_vis")
+        tf.histogram_summary('b_fc6', self.B_fc6, name="b_fc6_vis")
+        tf.histogram_summary('w_fc7', self.W_fc7, name="w_fc7_vis")
+        tf.histogram_summary('b_fc7', self.B_fc7, name="b_fc7_vis")
+        tf.histogram_summary('w_fc8', self.W_fc7, name="w_fc8_vis")
+        tf.histogram_summary('b_fc8', self.B_fc7, name="b_fc8_vis")
+
 
     def getLoadVars(self):
         v = tf.all_variables()
-        return [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
 
     #Trains model for numSteps
     #If pre is False, will train entire network
@@ -197,7 +211,7 @@ class VGGGap(TFObj):
         for i in range(self.innerSteps):
             #Get data from dataObj
             data = dataObj.getData(self.batchSize)
-            feedDict = {self.inputImage: data[0], self.gt: data[1]}
+            feedDict = {self.inputImage: data[0], self.gt: data[1], self.keep_prob: .5}
             #Run optimizer
             if(self.preTrain):
                 self.sess.run(self.optimizerPre, feed_dict=feedDict)
@@ -212,43 +226,22 @@ class VGGGap(TFObj):
         if(save):
             save_path = self.saver.save(self.sess, self.saveFile, global_step=self.timestep, write_meta_graph=False)
             print("Model saved in file: %s" % save_path)
-        if(plot):
-            filename = self.plotDir + "train_" + str(self.timestep)
-            self.evalAndPlotCam(feedDict, filename)
-
-
-    def evalAndPlotCam(self, feedDict, prefix):
-        print "Plotting"
-        #We need feed_dict here
-        cam = self.sess.run(self.cam, feed_dict=feedDict)
-        img = feedDict[self.inputImage]
-        if self.gt in feedDict:
-            gtIdx = np.argmax(feedDict[self.gt], axis=1)
-        else:
-            gtIdx = None
-        camIdxs = self.sess.run(self.eval_idx, feed_dict=feedDict)
-        camVals = self.sess.run(self.eval_vals, feed_dict=feedDict)
-        np_w_gap = self.sess.run(self.W_gap, feed_dict=feedDict)
-        plotCam(prefix, img, gtIdx, cam, camIdxs, camVals, self.idxToName, np_w_gap)
 
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set
     def evalModel(self, inData, inGt = None, plot=True):
         (numData, ny, nx, nf) = inData.shape
         if(inGt != None):
-            (numGt, drop) = inGt.shape
+            numGt = inGt.shape[0]
             assert(numData == numGt)
-            feedDict = {self.inputImage: inData, self.gt: inGt}
+            feedDict = {self.inputImage: inData, self.gt: inGt, self.keep_prob: 1}
         else:
-            feedDict = {self.inputImage: inData}
+            feedDict = {self.inputImage: inData, self.keep_prob: 1}
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)
 
-        if(plot):
-            filename = self.plotDir + "test_" + str(self.timestep)
-            self.evalAndPlotCam(feedDict, filename)
-
         return outVals
+

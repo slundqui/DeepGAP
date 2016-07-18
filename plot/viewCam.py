@@ -4,6 +4,8 @@ import matplotlib
 import numpy as np
 from scipy.ndimage import zoom
 import pdb
+import colorsys
+import operator
 
 def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
     fontsize = 6
@@ -89,6 +91,12 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
         plt.savefig(outPrefix + "_" + str(b) + ".png")
         plt.close(f)
 
+
+def get_N_HexCol(N=5):
+    HSV_tuples = [(x*1.0/N, 0.5, 0.5) for x in range(N)]
+    RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+    return RGB_tuples
+
 def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
     fontsize = 6
     matplotlib.rc('font', size=fontsize)
@@ -106,6 +114,9 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
 
     maxWeight = np.max(weights)
     minWeight = np.min(weights)
+
+    reCam = cam.copy()
+    reCam[:, -1, :, :] *= .5
 
     for b in range(nbatch):
         sortedCam = cam[b, idxs[b, :], :, :]
@@ -181,5 +192,75 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
 
         plt.savefig(outPrefix + "_" + str(b) + ".png")
         plt.close(f)
+
+        #Find category per pixel and assign color
+        #Decrease the weight of the distractor class
+        camLabels = np.argmax(reCam[b, :, :, :], axis=0)
+        gtLabels = np.argmax(gt[b, :, :, :], axis=2)
+
+        uniqueCamLabels = np.unique(camLabels)
+        uniqueGtLabels = np.unique(gtLabels)
+
+        numUnique = len(np.unique(np.concatenate((uniqueCamLabels, uniqueGtLabels))))
+        labelColors = get_N_HexCol(numUnique)
+
+        #Assign color per label
+        c = {}
+        i=0
+        for l in uniqueCamLabels:
+            if(not l in c):
+                c[l] = labelColors[i]
+                i += 1
+
+        for l in uniqueGtLabels:
+            if(not l in c):
+                c[l] = labelColors[i]
+                i += 1
+
+        outCam = np.zeros((nyCam, nxCam, 3))
+        outGt = np.zeros((nyCam, nxCam, 3))
+
+        numPerLabel = dict.fromkeys(c.keys(), 0)
+
+        for (i, label) in enumerate(uniqueCamLabels):
+            camIdxs = np.nonzero(camLabels == label)
+            numPerLabel[label] += len(camIdxs[0])
+            outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
+
+        for (i, label) in enumerate(uniqueGtLabels):
+            gtIdxs = np.nonzero(gtLabels == label)
+            numPerLabel[label] += len(gtIdxs[0])
+            outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
+
+        rects = []
+        labels = []
+        #Rank by numPerLabel
+        sortLabel = sorted(numPerLabel.items(), key=operator.itemgetter(1))
+        #Reverse sort
+        sortLabel = sortLabel[::-1]
+
+        for (label, drop) in sortLabel:
+            rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=c[label]))
+            labels.append(idxToName[label])
+
+        resizeCam = zoom(outCam, [yFactor, xFactor, 1])
+        resizeGt = zoom(outGt, [yFactor, xFactor, 1])
+
+        f, axarr = plt.subplots(2, 1, figsize=(7.5, 10))
+        axarr[0].imshow(norm_image)
+        axarr[0].imshow(resizeCam, alpha=.9)
+        axarr[0].set_title("Estimate")
+        axarr[1].imshow(norm_image)
+        axarr[1].imshow(resizeGt, alpha=.9)
+        axarr[1].set_title("GT")
+
+        plt.legend(rects, labels, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+        plt.tight_layout()
+        plt.savefig(outPrefix + "_" + str(b) + "_agg.png")
+        plt.close(f)
+
+
+
 
 

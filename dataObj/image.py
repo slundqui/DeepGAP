@@ -85,7 +85,11 @@ class imageObj(object):
 
     #Function to resize image to inputShape
     def resizeImage(self, inImage):
-        (ny, nx, nf) = inImage.shape
+        try:
+            (ny, nx, nf) = inImage.shape
+        except:
+            print inImage
+            pdb.set_trace()
         if(self.resizeMethod == "crop"):
             if(ny > nx):
                 #Get percentage of scale
@@ -225,9 +229,12 @@ class imageNetObj(imageObj):
     numClasses = 1000
     mean = 0.44864434289 #Mean of training set
 
+    def loadMetaFile(self, metaFilename):
+        return loadMeta(metaFilename)
+
     def __init__(self, imgList, imgPrefix, metaFilename, useClassDir, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
         #Load metafile and store dict wnToIdx and list idxToName
-        (self.wnToIdx, self.idxToName) = loadMeta(metaFilename)
+        (self.wnToIdx, self.idxToName) = self.loadMetaFile(metaFilename)
         #Add distractor to idxToName
         self.idxToName.append("distractor")
         self.imgPrefix = imgPrefix
@@ -363,9 +370,74 @@ class evalObj(imageObj):
     def convertFilename(self, filename):
         return filename
 
+class vocDetObj(imageNetDetObj):
+    numClasses = 20
+    def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+        super(vocDetObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed)
 
+    def loadMetaFile(self, metaFilename):
+        idxToName = [
+           'aeroplane', 'bicycle', 'bird', 'boat',
+           'bottle', 'bus', 'car', 'cat', 'chair',
+           'cow', 'diningtable', 'dog', 'horse',
+           'motorbike', 'person', 'pottedplant',
+           'sheep', 'sofa', 'train', 'tvmonitor', 'distractor']
 
+        wnToIdx = {c:i for (i, c) in enumerate(idxToName)}
+        return (wnToIdx, idxToName)
 
+class vocObj(imageNetDetObj):
+    numClasses = 20
+    def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+        super(vocObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed)
+        self.gtShape = [self.numClasses]
+
+    def loadMetaFile(self, metaFilename):
+        idxToName = [
+           'aeroplane', 'bicycle', 'bird', 'boat',
+           'bottle', 'bus', 'car', 'cat', 'chair',
+           'cow', 'diningtable', 'dog', 'horse',
+           'motorbike', 'person', 'pottedplant',
+           'sheep', 'sofa', 'train', 'tvmonitor']
+
+        wnToIdx = {c:i for (i, c) in enumerate(idxToName)}
+        return (wnToIdx, idxToName)
+
+    def genGT(self, filename):
+        gt = np.zeros(self.gtShape)
+
+        #Split filename into file and ground truth
+        suffix = filename.split(" ")[0]
+        gtFilename = self.gtPrefix + "/" + suffix + ".xml"
+
+        #If file does not exist, we mark it as a distractor
+        #This should not happen in VOC
+        if(not isfile(gtFilename)):
+            assert(0)
+
+        #Parse xml file
+        tree = ET.parse(gtFilename)
+        root = tree.getroot()
+
+        #Get all objects
+        maxIdx = None
+        maxArea = 0
+
+        objs = root.findall('object')
+        for obj in objs:
+            wnIdx = obj.find('name').text
+            xmin = int(obj.find('bndbox').find('xmin').text)
+            xmax = int(obj.find('bndbox').find('xmax').text)
+            ymin = int(obj.find('bndbox').find('ymin').text)
+            ymax = int(obj.find('bndbox').find('ymax').text)
+
+            bbArea = (xmax-xmin)*(ymax-ymin)
+            if(bbArea >= maxArea):
+                maxAream = bbArea
+                maxIdx = self.wnToIdx[wnIdx]
+        #Assign onehot
+        gt[maxIdx] = 1
+        return gt
 
 #if __name__ == "__main__":
 #    trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
