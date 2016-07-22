@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 
 from dataObj.image import vocObj
 from tf.VGG import VGG
+from plot.tagEval import calcMetric
 import numpy as np
 import pdb
 
 #Paths to list of filenames
 trainImageList = "/shared/VOCdevkit/VOC2007/ImageSets/Main/train_trainval.txt"
-testImageList = "/home/slundquist/mountData/voc/val.txt"
+testImageList = "/home/slundquist/mountData/voc/test.txt"
 
 trainImagePrefix = "/shared/VOCdevkit/VOC2007/JPEGImages/"
 testImagePrefix = "/shared/VOCdevkit/VOC2007/JPEGImages/"
@@ -19,13 +20,13 @@ testGTPrefix =  "/shared/VOCdevkit/VOC2007/Annotations/"
 
 #Get object from which tensorflow will pull data from
 trainDataObj = vocObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="aug", normStd=False, augument=True)
-testDataObj = vocObj(testImageList, testImagePrefix, testGTPrefix, resizeMethod="crop", normStd=False, augument=False)
+testDataObj = vocObj(testImageList, testImagePrefix, testGTPrefix, resizeMethod="crop", normStd=False, augument=False, shuffle=False, singleObj=False)
 
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/voc_vgg/",
+    'runDir':          "/eval_voc_vgg/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -44,18 +45,18 @@ params = {
     #Input vgg file for preloaded weights
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      100, #1000000,
     'innerSteps':      100, #300,
     #Batch size
-    'batchSize':       8,
+    'batchSize':       4,
     #Learning rate for optimizer
-    'learningRate':    1e-4,
+    'learningRate':    1e-5,
     'beta1' :          .9,
     'beta2' :          .999,
-    'regStrength':     .001,
+    'regStrength':     .01,
     'epsilon':         1e-8,
     'numClasses': trainDataObj.numClasses,
     'idxToName': trainDataObj.idxToName,
@@ -67,7 +68,28 @@ params = {
 tfObj = VGG(params, trainDataObj.inputShape)
 
 print "Done init"
-tfObj.runModel(trainDataObj, testDataObj = testDataObj)
+estWhole = np.zeros((testDataObj.numImages, 20))
+
+gt = np.zeros((testDataObj.numImages, 20))
+
+assert(testDataObj.numImages % params["batchSize"] == 0)
+for i in range(testDataObj.numImages/params["batchSize"]):
+    print i*params["batchSize"], "out of", testDataObj.numImages
+    (inImage, inGt) = testDataObj.getData(params["batchSize"])
+    estOut = tfObj.evalModel(inImage, inGt = inGt, plot=False)
+    (batch, drop) = estOut.shape
+    tfObj.timestep += 1
+    for b in range(batch):
+        outIdx = i * batch + b
+        estWhole[outIdx, :] = estOut[b, :]
+        gt[outIdx, np.nonzero(inGt[b, :]==1)[0]] = 1
+
+runDir = params["outDir"]+params["runDir"]
+plotDir = runDir + params["plotDir"]
+np.save(runDir + "estWhole.pkl", estWhole)
+np.save(runDir + "gt.pkl", gt)
+
+calcMetric(estWhole, gt, plotDir + "pvrWhole.png")
 print "Done run"
 
 tfObj.closeSess()

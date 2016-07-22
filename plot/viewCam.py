@@ -47,6 +47,7 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
 
         maxCam = np.max(sortedCam-avgCam)
         minCam = np.min(sortedCam-avgCam)
+        minCam = 0
 
         for y in range(yTile):
             for x in range(xTile):
@@ -58,8 +59,8 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
                         strLabel = idxToName[gtIdx[b]].split(',')[0]
                         axarr[0, 0].set_title(strLabel, fontsize=fontsize)
                     plt.colorbar(axx, ax = axarr[0, 0])
-                #elif(camIdx < 5):
-                else:
+                elif(camIdx < 5):
+                #else:
                     if(camIdx < numCam):
                         camImg = sortedCam[camIdx, :, :]
                         camImg = camImg-avgCam
@@ -75,16 +76,17 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
                         #Take only label after first comma
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel + ": " + str('%.2g'%vals[b, camIdx]), fontsize=fontsize)
-                #else:
-                #    camIdx = camIdx - 5
-                #    if(camIdx < numCam):
-                #        [numWeights, numClass] = weights.shape
-                #        plotWeights = weights[:, idxs[camIdx]]
-                #        #axx = axarr[y, x].hist(plotWeights, 20, facecolor='green')
-                #        axx = axarr[y, x].bar(range(numWeights), plotWeights)
-                #        axarr[y, x].set_ylim([minWeight, maxWeight])
-                #        strLabel = idxToName[idxs[camIdx]].split(',')[0]
-                #        axarr[y, x].set_title(strLabel + ": " + str(vals[camIdx]))
+                else:
+                    camIdx = camIdx - 5
+                    if(camIdx < numCam):
+                        #[numWeights, numClass] = weights.shape
+                        #plotWeights = weights[:, idxs[camIdx]]
+                        camImg = sortedCam[camIdx, :, :]
+                        axx = axarr[y, x].hist(camImg.flatten(), 20, facecolor='green')
+                        #axx = axarr[y, x].bar(range(numWeights), plotWeights)
+                        #axarr[y, x].set_ylim([minWeight, maxWeight])
+                        strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
+                        axarr[y, x].set_title(strLabel + ": " + str(vals[b, camIdx]))
 
         plt.tight_layout()
 
@@ -116,7 +118,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
     minWeight = np.min(weights)
 
     reCam = cam.copy()
-    reCam[:, -1, :, :] *= .5
+    reCam[:, -1, :, :] *= .7
 
     for b in range(nbatch):
         sortedCam = cam[b, idxs[b, :], :, :]
@@ -152,14 +154,15 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
                         axarr[0, 0].set_title(strLabel, fontsize=fontsize)
                     plt.colorbar(axx, ax = axarr[0, 0])
                 elif(camIdx < 5):
-                    gtImg = gt[b, :, :, idxs[b, camIdx]]
-                    resizeGT = zoom(gtImg, [yFactor, xFactor])
-                    axarr[y, x].imshow(norm_image)
-                    axx = axarr[y, x].imshow(resizeGT, cmap=colormap, vmax=1, vmin=0, alpha=.6)
-                    plt.colorbar(axx, ax = axarr[y, x])
-                    #Take only label after first comma
-                    strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
-                    axarr[y, x].set_title(strLabel+ " gt", fontsize=fontsize)
+                    if(gt != None):
+                        gtImg = gt[b, :, :, idxs[b, camIdx]]
+                        resizeGT = zoom(gtImg, [yFactor, xFactor])
+                        axarr[y, x].imshow(norm_image)
+                        axx = axarr[y, x].imshow(resizeGT, cmap=colormap, vmax=1, vmin=0, alpha=.6)
+                        plt.colorbar(axx, ax = axarr[y, x])
+                        #Take only label after first comma
+                        strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
+                        axarr[y, x].set_title(strLabel+ " gt", fontsize=fontsize)
 
                 else:
                     camIdx = camIdx - 5
@@ -196,12 +199,17 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
         #Find category per pixel and assign color
         #Decrease the weight of the distractor class
         camLabels = np.argmax(reCam[b, :, :, :], axis=0)
-        gtLabels = np.argmax(gt[b, :, :, :], axis=2)
-
         uniqueCamLabels = np.unique(camLabels)
-        uniqueGtLabels = np.unique(gtLabels)
 
-        numUnique = len(np.unique(np.concatenate((uniqueCamLabels, uniqueGtLabels))))
+        if(gt != None):
+            gtLabels = np.argmax(gt[b, :, :, :], axis=2)
+            uniqueGtLabels = np.unique(gtLabels)
+            numUnique = len(np.unique(np.concatenate((uniqueCamLabels, uniqueGtLabels))))
+            outGt = np.zeros((nyCam, nxCam, 3))
+        else:
+            numUnique = len(uniqueCamLabels)
+
+
         labelColors = get_N_HexCol(numUnique)
 
         #Assign color per label
@@ -212,13 +220,13 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
                 c[l] = labelColors[i]
                 i += 1
 
-        for l in uniqueGtLabels:
-            if(not l in c):
-                c[l] = labelColors[i]
-                i += 1
+        if(gt != None):
+            for l in uniqueGtLabels:
+                if(not l in c):
+                    c[l] = labelColors[i]
+                    i += 1
 
         outCam = np.zeros((nyCam, nxCam, 3))
-        outGt = np.zeros((nyCam, nxCam, 3))
 
         numPerLabel = dict.fromkeys(c.keys(), 0)
 
@@ -227,10 +235,11 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
             numPerLabel[label] += len(camIdxs[0])
             outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
 
-        for (i, label) in enumerate(uniqueGtLabels):
-            gtIdxs = np.nonzero(gtLabels == label)
-            numPerLabel[label] += len(gtIdxs[0])
-            outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
+        if(gt != None):
+            for (i, label) in enumerate(uniqueGtLabels):
+                gtIdxs = np.nonzero(gtLabels == label)
+                numPerLabel[label] += len(gtIdxs[0])
+                outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
 
         rects = []
         labels = []
@@ -244,15 +253,24 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
             labels.append(idxToName[label])
 
         resizeCam = zoom(outCam, [yFactor, xFactor, 1])
-        resizeGt = zoom(outGt, [yFactor, xFactor, 1])
+        if(gt != None):
+            resizeGt = zoom(outGt, [yFactor, xFactor, 1])
 
-        f, axarr = plt.subplots(2, 1, figsize=(7.5, 10))
-        axarr[0].imshow(norm_image)
-        axarr[0].imshow(resizeCam, alpha=.9)
-        axarr[0].set_title("Estimate")
-        axarr[1].imshow(norm_image)
-        axarr[1].imshow(resizeGt, alpha=.9)
-        axarr[1].set_title("GT")
+        if(gt != None):
+            f, axarr = plt.subplots(2, 1, figsize=(7.5, 10))
+        else:
+            f, axarr = plt.subplots(1, 1, figsize=(7.5, 10))
+        if(gt != None):
+            axarr[0].imshow(norm_image)
+            axarr[0].imshow(resizeCam, alpha=.9)
+            axarr[0].set_title("Estimate")
+            axarr[1].imshow(norm_image)
+            axarr[1].imshow(resizeGt, alpha=.9)
+            axarr[1].set_title("GT")
+        else:
+            axarr.imshow(norm_image)
+            axarr.imshow(resizeCam, alpha=.9)
+            axarr.set_title("Estimate")
 
         plt.legend(rects, labels, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 

@@ -3,7 +3,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from dataObj.image import vocObj
-from tf.VGG import VGG
+from tf.VGGGap import VGGGap
 import numpy as np
 import pdb
 
@@ -25,7 +25,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/voc_vgg/",
+    'runDir':          "/voc_gap_vgg/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -40,7 +40,7 @@ params = {
     'writeStep':       100, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/voc_vgg.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/voc_gap_vgg.ckpt",
     #Input vgg file for preloaded weights
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
@@ -52,10 +52,10 @@ params = {
     #Batch size
     'batchSize':       8,
     #Learning rate for optimizer
-    'learningRate':    1e-4,
+    'learningRate':    1e-5,
     'beta1' :          .9,
     'beta2' :          .999,
-    'regStrength':     .001,
+    'regStrength':     .01,
     'epsilon':         1e-8,
     'numClasses': trainDataObj.numClasses,
     'idxToName': trainDataObj.idxToName,
@@ -64,7 +64,7 @@ params = {
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = VGG(params, trainDataObj.inputShape)
+tfObj = VGGGap(params, trainDataObj.inputShape)
 
 print "Done init"
 tfObj.runModel(trainDataObj, testDataObj = testDataObj)

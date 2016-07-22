@@ -27,7 +27,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/imagenet_det_vgg/",
+    'runDir':          "/imagenet_det_vgg_ds/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -41,7 +41,7 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       100, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
     #Input vgg file for preloaded weights
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
@@ -49,7 +49,7 @@ params = {
     'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      10000000, #1000000,
+    'outerSteps':      100, #1000000,
     'innerSteps':      100, #300,
     #Batch size
     'batchSize':       8,
@@ -60,7 +60,7 @@ params = {
     'epsilon':         1e-8,
     'numClasses': trainDataObj.numClasses+1,
     'idxToName': trainDataObj.idxToName,
-    'preTrain': False,
+    'preTrain': True,
 }
 
 #Allocate tensorflow object

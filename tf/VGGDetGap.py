@@ -32,7 +32,7 @@ class VGGDetGap(TFObj):
             with tf.name_scope("inputOps"):
                 #Get convolution variables as placeholders
                 self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2]], "inputImage")
-                self.gt = node_variable([self.batchSize, 14, 14, self.numClasses], "gt")
+                self.gt = node_variable([self.batchSize, 7, 7, self.numClasses], "gt")
                 self.norm_gt = self.gt/tf.reduce_sum(self.gt, reduction_indices=3, keep_dims=True)
                 #Model variables for convolutions
 
@@ -93,18 +93,19 @@ class VGGDetGap(TFObj):
                 self.h_conv5_1 = tf.nn.relu(conv2d(self.h_pool4, self.W_conv5_1, "conv5_1") + self.B_conv5_1)
                 self.h_conv5_2 = tf.nn.relu(conv2d(self.h_conv5_1, self.W_conv5_2, "conv5_2") + self.B_conv5_2)
                 self.h_conv5_3 = tf.nn.relu(conv2d(self.h_conv5_2, self.W_conv5_3, "conv5_2") + self.B_conv5_3)
+                self.h_pool5 = maxpool_2x2(self.h_conv5_3, "pool5")
 
             #16 comes from 4 2x2 pooling
-            self.h_conv5_shape = [self.batchSize, inputShape[0]/16, inputShape[1]/16, 512]
-            assert(inputShape[0]/16 == 14)
+            self.h_conv5_shape = [self.batchSize, inputShape[0]/32, inputShape[1]/32, 512]
+            assert(inputShape[0]/32 == 7)
             with tf.name_scope("GAP"):
-                self.h_gap = tf.reduce_mean(self.h_conv5_3, reduction_indices=[1, 2])
+                self.h_gap = tf.reduce_mean(self.h_pool5, reduction_indices=[1, 2])
                 self.W_gap = weight_variable_xavier([512, self.numClasses], "w_gap", conv=False)
                 self.B_gap = bias_variable([self.numClasses], "b_gap")
                 self.est = tf.nn.softmax(tf.matmul(self.h_gap, self.W_gap)+self.B_gap)
 
             with tf.name_scope("CAM"):
-                self.h_reshape_gap = tf.reshape(self.h_conv5_3, [self.batchSize*self.h_conv5_shape[1]*self.h_conv5_shape[2], -1])
+                self.h_reshape_gap = tf.reshape(self.h_pool5, [self.batchSize*self.h_conv5_shape[1]*self.h_conv5_shape[2], -1])
                 self.flat_cam = tf.matmul(self.h_reshape_gap, self.W_gap) + self.B_gap
                 self.reshape_cam = tf.reshape(self.flat_cam, [self.batchSize, self.h_conv5_shape[1], self.h_conv5_shape[2], -1])
                 self.softmax_cam = pixelSoftmax(self.reshape_cam)
@@ -119,7 +120,7 @@ class VGGDetGap(TFObj):
 
             with tf.name_scope("Opt"):
                 #Define optimizer
-                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.regLoss)
+                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss)
                 #self.optimizerAll = tf.train.MomentumOptimizer(self.learningRate, momentum=self.beta1).minimize(self.loss)
                 self.optimizerPre = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
@@ -192,7 +193,8 @@ class VGGDetGap(TFObj):
 
     def getLoadVars(self):
         v = tf.all_variables()
-        return [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
+        #return [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
+        return v
 
     #Trains model for numSteps
     #If pre is False, will train entire network
@@ -246,7 +248,7 @@ class VGGDetGap(TFObj):
         else:
             feedDict = {self.inputImage: inData}
 
-        outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
+        outVals = self.vis_cam.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)

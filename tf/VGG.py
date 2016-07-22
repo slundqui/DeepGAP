@@ -94,24 +94,26 @@ class VGG(TFObj):
                 self.h_conv5_3 = tf.nn.relu(conv2d(self.h_conv5_2, self.W_conv5_3, "conv5_2") + self.B_conv5_3)
                 self.h_pool5 = maxpool_2x2(self.h_conv5_3, "pool5")
 
-            with tf.name_scope("FC"):
-                #Dropout var
-                self.keep_prob = tf.placeholder(tf.float32)
+        with tf.device('cpu:0'):
 
-                self.W_fc6 = weight_variable_xavier([7*7*512, 2048], "w_fc6")
-                self.B_fc6 = bias_variable([2048], "b_fc6")
-                self.W_fc7 = weight_variable_xavier([2048, 2048], "w_fc7")
-                self.B_fc7 = bias_variable([2048], "b_fc7")
-                self.W_fc8 = weight_variable_xavier([2048, 20], "w_fc8")
-                self.B_fc8 = bias_variable([20], "b_fc8")
-
+            self.keep_prob = tf.placeholder(tf.float32)
+            with tf.name_scope("FC6"):
+                self.W_fc6 = weight_variable_fromnp(npWeights["fc6_w"], "w_fc6")
+                self.B_fc6 = weight_variable_fromnp(npWeights["fc6_b"], "b_fc6")
                 h_pool5_flat = tf.reshape(self.h_pool5, [self.batchSize, 7*7*512])
                 self.h_fc6 = tf.nn.relu(tf.matmul(h_pool5_flat, self.W_fc6, name="fc6") + self.B_fc6, "fc6_relu")
                 self.drop_h_fc6 = tf.nn.dropout(self.h_fc6, self.keep_prob)
 
+        with tf.device(self.device):
+            with tf.name_scope("FC7"):
+                self.W_fc7 = weight_variable_fromnp(npWeights["fc7_w"], "w_fc7")
+                self.B_fc7 = weight_variable_fromnp(npWeights["fc7_b"], "b_fc7")
                 self.h_fc7 = tf.nn.relu(tf.matmul(self.drop_h_fc6, self.W_fc7, name="fc7") + self.B_fc7, "fc7_relu")
                 self.drop_h_fc7 = tf.nn.dropout(self.h_fc7, self.keep_prob)
 
+            with tf.name_scope("FC8"):
+                self.W_fc8 = weight_variable_xavier([4096, 20], "w_fc8")
+                self.B_fc8 = bias_variable([20], "b_fc8")
                 self.est = tf.nn.softmax(tf.matmul(self.drop_h_fc7, self.W_fc8, name="fc8") + self.B_fc8, "fc8_relu")
 
             with tf.name_scope("Loss"):
@@ -122,7 +124,7 @@ class VGG(TFObj):
 
             with tf.name_scope("Opt"):
                 #Define optimizer
-                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.regLoss)
+                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss)
                 #self.optimizerAll = tf.train.MomentumOptimizer(self.learningRate, momentum=self.beta1).minimize(self.loss)
                 self.optimizerPre = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
@@ -202,6 +204,9 @@ class VGG(TFObj):
 
     def getLoadVars(self):
         v = tf.all_variables()
+        #return [var for var in v if ("fc8" in var.name)]
+        return v
+
 
     #Trains model for numSteps
     #If pre is False, will train entire network

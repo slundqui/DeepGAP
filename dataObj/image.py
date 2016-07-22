@@ -35,8 +35,8 @@ class imageObj(object):
     #"max" will find the max dimension of the list of images, and pad the surrounding area
     #Additionally, if inMaxDim is set with resizeMethod of "max", it will explicitly set
     #the max dimension to inMaxDim
-    def __init__(self, imgList, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True):
-        self.resizeMethod=resizeMethod
+    def __init__(self, imgList, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True, augument=False):
+        self.resizeMethodParam=resizeMethod
         self.normStd = normStd
         if(imgList.split(".")[-1] == "txt"):
             self.imgFiles = readList(imgList)
@@ -49,6 +49,8 @@ class imageObj(object):
         self.skip = skip
         self.getGT = getGT
         self.gtShape = [self.numClasses]
+        self.augument = augument
+
         if(self.doShuffle):
             #Initialize random seed
             if(seed):
@@ -57,14 +59,12 @@ class imageObj(object):
             random.shuffle(self.shuffleIdx)
         #This function will also set self.maxDim
         #self.getMean()
-        if(self.resizeMethod=="crop"):
+        if(self.resizeMethodParam=="crop"):
             pass
-        elif(self.resizeMethod=="pad"):
+        elif(self.resizeMethodParam=="pad"):
             pass
-        elif(self.resizeMethod=="max"):
-            #self.inputShape=(self.maxDim, self.maxDim, 3)
-            print "Resize method max Not implemented"
-            assert(0)
+        elif(self.resizeMethodParam=="aug"):
+            pass
         else:
             print "Method ", resizeMethod, "not supported"
             assert(0)
@@ -84,12 +84,28 @@ class imageObj(object):
     #    print "img mean: ", self.mean
 
     #Function to resize image to inputShape
+    #We augument images here as necessary
     def resizeImage(self, inImage):
         try:
             (ny, nx, nf) = inImage.shape
         except:
             print inImage
             pdb.set_trace()
+
+        if(self.augument):
+            #Generate offset and flip
+            self.flip = random.randint(0,1)
+            if(self.flip):
+                inImage = inImage[:, ::-1, :]
+        else:
+            self.flip = 0
+
+
+        if(self.resizeMethodParam == "aug"):
+            self.resizeMethod = random.choice(["crop", "pad"])
+        else:
+            self.resizeMethod = self.resizeMethodParam
+
         if(self.resizeMethod == "crop"):
             if(ny > nx):
                 #Get percentage of scale
@@ -122,15 +138,6 @@ class imageObj(object):
                 padTop = (self.inputShape[0]-targetNy)/2
                 padBot = self.inputShape[0] - (padTop + targetNy)
                 outImage = np.pad(scaleImage, ((padTop, padBot), (0, 0), (0, 0)), 'constant')
-        elif(self.resizeMethod=="max"):
-            #We pad entire image with 0
-            assert(ny <= self.inputShape[0])
-            assert(nx <= self.inputShape[1])
-            padTop   = (self.inputShape[0]-ny)/2
-            padBot   = self.inputShape[0]-(padTop+ny)
-            padLeft  = (self.inputShape[1]-nx)/2
-            padRight = self.inputShape[1]-(padLeft+nx)
-            outImage = np.pad(inImage, ((padTop, padBot), (padLeft, padRight), (0, 0)), 'constant')
         else:
             print "Method ", resizeMethod, "not supported"
             assert(0)
@@ -138,7 +145,11 @@ class imageObj(object):
 
     #Reads image provided in the argument, resizes, and normalizes image
     #Returns the image
-    def readImage(self, filename):
+    def readImage(self, filename, onlyGt=False):
+        if(onlyGt):
+            gt = self.genGT(filename)
+            return (None, gt)
+
         image = imread(self.convertFilename(filename))
         #Check if b/w, and convert to color if necessary
         if(image.ndim == 2):
@@ -168,10 +179,10 @@ class imageObj(object):
         return gt
 
     #Grabs the next image in the list. Will shuffle images when rewinding
-    def nextImage(self):
+    def nextImage(self, onlyGt = False):
         startIdx = self.shuffleIdx[self.imgIdx]
         imgFile = self.imgFiles[startIdx]
-        outData = self.readImage(imgFile)
+        outData = self.readImage(imgFile, onlyGt)
         #Update imgIdx
         self.imgIdx = self.imgIdx + self.skip
 
@@ -194,17 +205,23 @@ class imageObj(object):
 
     #Gets numExample images and stores it into an outer dimension.
     #This is what TF object calls to get images for training
-    def getData(self, numExample):
-        outData = np.zeros((numExample, self.inputShape[0], self.inputShape[1], self.inputShape[2]))
+    def getData(self, numExample, onlyGt = False):
+        if(onlyGt):
+            outData = None
+        else:
+            outData = np.zeros((numExample, self.inputShape[0], self.inputShape[1], self.inputShape[2]))
         if(self.getGT):
             shape = [numExample]
             shape.extend(self.gtShape)
             outGt = np.zeros(shape)
+
         for i in range(numExample):
-            data = self.nextImage()
+            data = self.nextImage(onlyGt)
             if(self.getGT):
                 outData[i, :, :, :] = data[0]
                 outGt[i] = data[1]
+            elif(onlyGt):
+                outGt[i] = data
             else:
                 outData[i, :, :, :] = data
         if(self.getGT):
@@ -232,7 +249,7 @@ class imageNetObj(imageObj):
     def loadMetaFile(self, metaFilename):
         return loadMeta(metaFilename)
 
-    def __init__(self, imgList, imgPrefix, metaFilename, useClassDir, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+    def __init__(self, imgList, imgPrefix, metaFilename, useClassDir, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, augument=False, getGT=True):
         #Load metafile and store dict wnToIdx and list idxToName
         (self.wnToIdx, self.idxToName) = self.loadMetaFile(metaFilename)
         #Add distractor to idxToName
@@ -242,7 +259,7 @@ class imageNetObj(imageObj):
         self.ext = ext
         self.normStd = normStd
         #Call superclass constructor
-        super(imageNetObj, self).__init__(imgList, resizeMethod, normStd, shuffle, skip, seed)
+        super(imageNetObj, self).__init__(imgList, resizeMethod, normStd, shuffle, skip, seed, augument=augument, getGT=getGT)
 
     #Must append prefix to filenames and remove image idx
     def convertFilename(self, filename):
@@ -265,12 +282,12 @@ class imageNetObj(imageObj):
 class imageNetDetObj(imageNetObj):
     numClasses = 200
 
-    def __init__(self, imgList, imgPrefix, gtPrefix, metaFilename, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+    def __init__(self, imgList, imgPrefix, gtPrefix, metaFilename, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, augument=False, getGT=True):
         #Load metafile and store dict wnToIdx and list idxToName
         self.imgPrefix = imgPrefix
         self.gtPrefix = gtPrefix
         #Call superclass constructor
-        super(imageNetDetObj, self).__init__(imgList, imgPrefix, metaFilename, False, ext, resizeMethod, normStd, shuffle, skip, seed)
+        super(imageNetDetObj, self).__init__(imgList, imgPrefix, metaFilename, False, ext, resizeMethod, normStd, shuffle, skip, seed, augument=augument, getGT=getGT)
         #Class 200 is the distractor class
         self.gtShape = [14, 14, self.numClasses+1]
 
@@ -346,6 +363,12 @@ class imageNetDetObj(imageNetObj):
             scale_xmax = int(round(xmax*scaleFactor)+xOffset)
             scale_ymin = int(round(ymin*scaleFactor)+yOffset)
             scale_ymax = int(round(ymax*scaleFactor)+yOffset)
+            #Flip x if needed
+            if(self.flip):
+                tmp = self.gtShape[1] - scale_xmin
+                scale_xmin = self.gtShape[1] - scale_xmax
+                scale_xmax = tmp
+
             #Check bounds
             #We only need to check min bounds, because numpy indexing auto truncates the upper dimension
             if(scale_xmin < 0):
@@ -363,17 +386,20 @@ class imageNetDetObj(imageNetObj):
 
 class evalObj(imageObj):
     inputShape = (224, 224, 3)
+    numClasses = 200
     mean = None
-    def __init__(self, imgFile, metaFilename, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
+    def __init__(self, imgFile, metaFilename, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, augument=False):
         (self.wnToIdx, self.idxToName) = loadMeta(metaFilename)
-        super(evalObj, self).__init__(imgFile, resizeMethod, normStd, shuffle, skip, seed, getGT=False)
+        self.idxToName.append("distractor")
+        super(evalObj, self).__init__(imgFile, resizeMethod, normStd, shuffle, skip, seed, getGT=False, augument=augument)
     def convertFilename(self, filename):
         return filename
 
 class vocDetObj(imageNetDetObj):
     numClasses = 20
-    def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
-        super(vocDetObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed)
+    def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, augument=False):
+        super(vocDetObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed, augument=augument)
+        self.gtShape = [7, 7, self.numClasses+1]
 
     def loadMetaFile(self, metaFilename):
         idxToName = [
@@ -388,9 +414,10 @@ class vocDetObj(imageNetDetObj):
 
 class vocObj(imageNetDetObj):
     numClasses = 20
-    def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None):
-        super(vocObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed)
+    def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, singleObj=True, augument=False):
+        super(vocObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed, augument=augument)
         self.gtShape = [self.numClasses]
+        self.singleObj = singleObj
 
     def loadMetaFile(self, metaFilename):
         idxToName = [
@@ -424,19 +451,24 @@ class vocObj(imageNetDetObj):
         maxArea = 0
 
         objs = root.findall('object')
-        for obj in objs:
-            wnIdx = obj.find('name').text
-            xmin = int(obj.find('bndbox').find('xmin').text)
-            xmax = int(obj.find('bndbox').find('xmax').text)
-            ymin = int(obj.find('bndbox').find('ymin').text)
-            ymax = int(obj.find('bndbox').find('ymax').text)
+        if(self.singleObj):
+            for obj in objs:
+                wnIdx = obj.find('name').text
+                xmin = int(obj.find('bndbox').find('xmin').text)
+                xmax = int(obj.find('bndbox').find('xmax').text)
+                ymin = int(obj.find('bndbox').find('ymin').text)
+                ymax = int(obj.find('bndbox').find('ymax').text)
 
-            bbArea = (xmax-xmin)*(ymax-ymin)
-            if(bbArea >= maxArea):
-                maxAream = bbArea
-                maxIdx = self.wnToIdx[wnIdx]
-        #Assign onehot
-        gt[maxIdx] = 1
+                bbArea = (xmax-xmin)*(ymax-ymin)
+                if(bbArea >= maxArea):
+                    maxAream = bbArea
+                    maxIdx = self.wnToIdx[wnIdx]
+            gt[maxIdx] = 1
+        else:
+            for obj in objs:
+                wnIdx = obj.find('name').text
+                gt[self.wnToIdx[wnIdx]] = 1
+
         return gt
 
 #if __name__ == "__main__":

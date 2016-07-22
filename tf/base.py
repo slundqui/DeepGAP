@@ -20,6 +20,7 @@ class TFObj(object):
         self.sess = tf.Session()
         self.buildModel(inputShape)
         self.initialize()
+        self.writeSummary()
 
     def loadParams(self, params):
         #Initialize tf parameters here
@@ -58,8 +59,6 @@ class TFObj(object):
            os.makedirs(self.ckptDir)
 
     def runModel(self, trainDataObj, testDataObj=None):
-        #Load summary
-        self.writeSummary()
         for i in range(self.outerSteps):
            #Plot flag
            if(i%self.plotPeriod == 0):
@@ -86,13 +85,9 @@ class TFObj(object):
 
     def initialize(self):
         ##Define saver
-        if(self.preTrain):
-            v = tf.all_variables()
-            load_v = self.getLoadVars()
-            ##Load specific variables, save all variables
-            self.loader = tf.train.Saver(var_list=load_v)
-        else:
-            self.loader = tf.train.Saver()
+        load_v = self.getLoadVars()
+        ##Load specific variables, save all variables
+        self.loader = tf.train.Saver(var_list=load_v)
         self.saver = tf.train.Saver()
 
         #Initialize
@@ -214,6 +209,8 @@ class TFObj(object):
     #Loads a tf checkpoint
     def loadModel(self):
         self.loader.restore(self.sess, self.loadFile)
+        #self.guarantee_initialized_variables(self.sess)
+
         print("Model %s loaded" % self.loadFile)
 
 

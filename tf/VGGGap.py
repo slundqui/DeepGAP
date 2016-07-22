@@ -15,7 +15,7 @@ class VGGGap(TFObj):
     plotTimestep = 0
 
     def loadParams(self, params):
-        super(VGGDetGap, self).loadParams(params)
+        super(VGGGap, self).loadParams(params)
 
         self.beta1 = params['beta1']
         self.beta2 = params['beta2']
@@ -109,6 +109,7 @@ class VGGGap(TFObj):
                 self.h_reshape_gap = tf.reshape(self.h_conv5_3, [self.batchSize*self.h_conv5_shape[1]*self.h_conv5_shape[2], -1])
                 self.flat_cam = tf.matmul(self.h_reshape_gap, self.W_gap)
                 self.reshape_cam = tf.reshape(self.flat_cam, [self.batchSize, self.h_conv5_shape[1], self.h_conv5_shape[2], -1])
+                #self.softmax_cam = pixelSoftmax(self.reshape_cam)
                 self.cam = tf.transpose(self.reshape_cam, [0, 3, 1, 2])
 
             with tf.name_scope("Loss"):
@@ -187,7 +188,8 @@ class VGGGap(TFObj):
 
     def getLoadVars(self):
         v = tf.all_variables()
-        return [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
+        #return [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
+        return v
 
     #Trains model for numSteps
     #If pre is False, will train entire network
@@ -242,7 +244,8 @@ class VGGGap(TFObj):
         else:
             feedDict = {self.inputImage: inData}
 
-        outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
+        camOutVals = self.cam.eval(feed_dict=feedDict, session=self.sess)
+        estOutVals = self.est.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)
@@ -251,4 +254,4 @@ class VGGGap(TFObj):
             filename = self.plotDir + "test_" + str(self.timestep)
             self.evalAndPlotCam(feedDict, filename)
 
-        return outVals
+        return (estOutVals, camOutVals)

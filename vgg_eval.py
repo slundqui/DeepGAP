@@ -1,7 +1,7 @@
 import matplotlib
 matplotlib.use('Agg')
 from dataObj.image import evalObj
-from tf.VGGGap import VGGGap
+from tf.VGGDetGap import VGGDetGap
 import numpy as np
 import pdb
 import sys
@@ -17,7 +17,7 @@ inImageList = sys.argv[1]
 #trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
 #testImageList = "/home/slundquist/mountData/datasets/imagenet/val_cls.txt"
 
-clsMeta = "/shared/imageNet/devkit/data/meta_clsloc.mat"
+clsMeta = "/shared/imageNet/devkit/data/meta_det.mat"
 
 #Get object from which tensorflow will pull data from
 evalDataObj = evalObj(inImageList, clsMeta, resizeMethod="crop", normStd=False)
@@ -41,7 +41,7 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_vgg_bias.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
     #Input vgg file for preloaded weights
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
@@ -57,14 +57,15 @@ params = {
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,
-    'numClasses': 1000,
+    'numClasses': 200+1,
     'idxToName': evalDataObj.idxToName,
     'preTrain': False,
+    'regStrength': .001,
 }
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = VGGGap(params, evalDataObj.inputShape)
+tfObj = VGGDetGap(params, evalDataObj.inputShape)
 
 print "Done init"
 tfObj.evalModel(evalDataObj.getData(1), plot=True)
