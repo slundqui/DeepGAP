@@ -33,7 +33,6 @@ class TFObj(object):
 
         self.load = params['load']
         self.loadFile = params['loadFile']
-        self.vggFile = params['vggFile']
         self.outerSteps = params['outerSteps']
         self.innerSteps = params['innerSteps']
         self.savePeriod = params['savePeriod']

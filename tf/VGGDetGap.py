@@ -14,6 +14,7 @@ class VGGDetGap(TFObj):
     def loadParams(self, params):
         super(VGGDetGap, self).loadParams(params)
 
+        self.vggFile = params['vggFile']
         self.beta1 = params['beta1']
         self.beta2 = params['beta2']
         self.epsilon = params['epsilon']
@@ -93,11 +94,11 @@ class VGGDetGap(TFObj):
                 self.h_conv5_1 = tf.nn.relu(conv2d(self.h_pool4, self.W_conv5_1, "conv5_1") + self.B_conv5_1)
                 self.h_conv5_2 = tf.nn.relu(conv2d(self.h_conv5_1, self.W_conv5_2, "conv5_2") + self.B_conv5_2)
                 self.h_conv5_3 = tf.nn.relu(conv2d(self.h_conv5_2, self.W_conv5_3, "conv5_2") + self.B_conv5_3)
-                self.h_pool5 = maxpool_2x2(self.h_conv5_3, "pool5")
+                self.h_pool5 = tf.nn.avg_pool(self.h_conv5_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name="pool5")
 
             #16 comes from 4 2x2 pooling
-            self.h_conv5_shape = [self.batchSize, inputShape[0]/32, inputShape[1]/32, 512]
-            assert(inputShape[0]/32 == 7)
+            #self.h_conv5_shape = [self.batchSize, inputShape[0]/32, inputShape[1]/32, 512]
+            self.h_conv5_shape = [self.batchSize, 7, 7, 512]
             with tf.name_scope("GAP"):
                 self.h_gap = tf.reduce_mean(self.h_pool5, reduction_indices=[1, 2])
                 self.W_gap = weight_variable_xavier([512, self.numClasses], "w_gap", conv=False)

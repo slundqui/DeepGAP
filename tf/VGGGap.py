@@ -17,6 +17,7 @@ class VGGGap(TFObj):
     def loadParams(self, params):
         super(VGGGap, self).loadParams(params)
 
+        self.vggFile = params['vggFile']
         self.beta1 = params['beta1']
         self.beta2 = params['beta2']
         self.epsilon = params['epsilon']

@@ -7,7 +7,7 @@ import pdb
 import colorsys
 import operator
 
-def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
+def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName):
     fontsize = 6
     matplotlib.rc('font', size=fontsize)
     (nbatch, nyImage, nxImage, nfImage) = inImage.shape
@@ -21,9 +21,6 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
     xFactor = nxImage/nxCam
 
     colormap = cm.get_cmap('jet')
-
-    maxWeight = np.max(weights)
-    minWeight = np.min(weights)
 
     for b in range(nbatch):
         sortedCam = cam[b, idxs[b, :], :, :]
@@ -79,12 +76,8 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName, weights):
                 else:
                     camIdx = camIdx - 5
                     if(camIdx < numCam):
-                        #[numWeights, numClass] = weights.shape
-                        #plotWeights = weights[:, idxs[camIdx]]
                         camImg = sortedCam[camIdx, :, :]
                         axx = axarr[y, x].hist(camImg.flatten(), 20, facecolor='green')
-                        #axx = axarr[y, x].bar(range(numWeights), plotWeights)
-                        #axarr[y, x].set_ylim([minWeight, maxWeight])
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel + ": " + str(vals[b, camIdx]))
 
@@ -99,26 +92,28 @@ def get_N_HexCol(N=5):
     RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
     return RGB_tuples
 
-def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
+def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1):
     fontsize = 6
     matplotlib.rc('font', size=fontsize)
     (nbatch, nyImage, nxImage, nfImage) = inImage.shape
     (nbatch, totCam, nyCam, nxCam) = cam.shape
+    #TODO fix this for other plots
+    (nbatch, nyGT, nxGT, numClass) = gt.shape
     numCam = len(idxs[0, :])
 
     assert(nyImage%nyCam == 0)
     assert(nxImage%nxCam == 0)
 
-    yFactor = nyImage/nyCam
-    xFactor = nxImage/nxCam
+    yFactorCam = nyImage/nyCam
+    xFactorCam = nxImage/nxCam
+
+    yFactorGt = nyImage/nyGT
+    xFactorGt = nxImage/nxGT
 
     colormap = cm.get_cmap('jet')
 
-    maxWeight = np.max(weights)
-    minWeight = np.min(weights)
-
     reCam = cam.copy()
-    reCam[:, -1, :, :] *= .7
+    reCam[:, distIdx, :, :] *= .7
 
     for b in range(nbatch):
         sortedCam = cam[b, idxs[b, :], :, :]
@@ -156,7 +151,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
                 elif(camIdx < 5):
                     if(gt != None):
                         gtImg = gt[b, :, :, idxs[b, camIdx]]
-                        resizeGT = zoom(gtImg, [yFactor, xFactor])
+                        resizeGT = zoom(gtImg, [yFactorGt, xFactorGt])
                         axarr[y, x].imshow(norm_image)
                         axx = axarr[y, x].imshow(resizeGT, cmap=colormap, vmax=1, vmin=0, alpha=.6)
                         plt.colorbar(axx, ax = axarr[y, x])
@@ -173,7 +168,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
                         ##minCam = -maxCam
                         #minCam = np.min(camImg)
 
-                        resizeCam = zoom(camImg, [yFactor, xFactor])
+                        resizeCam = zoom(camImg, [yFactorCam, xFactorCam])
                         axarr[y, x].imshow(norm_image)
                         axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=0, alpha=.6)
                         plt.colorbar(axx, ax = axarr[y, x])
@@ -205,7 +200,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
             gtLabels = np.argmax(gt[b, :, :, :], axis=2)
             uniqueGtLabels = np.unique(gtLabels)
             numUnique = len(np.unique(np.concatenate((uniqueCamLabels, uniqueGtLabels))))
-            outGt = np.zeros((nyCam, nxCam, 3))
+            outGt = np.zeros((nyGT, nxGT, 3))
         else:
             numUnique = len(uniqueCamLabels)
 
@@ -252,9 +247,9 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
             rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=c[label]))
             labels.append(idxToName[label])
 
-        resizeCam = zoom(outCam, [yFactor, xFactor, 1])
+        resizeCam = zoom(outCam, [yFactorCam, xFactorCam, 1])
         if(gt != None):
-            resizeGt = zoom(outGt, [yFactor, xFactor, 1])
+            resizeGt = zoom(outGt, [yFactorGt, xFactorGt, 1])
 
         if(gt != None):
             f, axarr = plt.subplots(2, 1, figsize=(7.5, 10))
@@ -272,10 +267,10 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, weights):
             axarr.imshow(resizeCam, alpha=.9)
             axarr.set_title("Estimate")
 
-        plt.legend(rects, labels, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        lgd = plt.legend(rects, labels, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-        plt.tight_layout()
-        plt.savefig(outPrefix + "_" + str(b) + "_agg.png")
+        #plt.tight_layout()
+        plt.savefig(outPrefix + "_" + str(b) + "_agg.png", bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close(f)
 
 

@@ -42,8 +42,8 @@ class imageObj(object):
             self.imgFiles = readList(imgList)
         else:
             self.imgFiles = [imgList]
-
         self.numImages = len(self.imgFiles)
+
         self.shuffleIdx = range(self.numImages)
         self.doShuffle = shuffle
         self.skip = skip
@@ -209,21 +209,19 @@ class imageObj(object):
         if(onlyGt):
             outData = None
         else:
-            outData = np.zeros((numExample, self.inputShape[0], self.inputShape[1], self.inputShape[2]))
+            outData = np.zeros((numExample,) + self.inputShape)
         if(self.getGT):
-            shape = [numExample]
-            shape.extend(self.gtShape)
-            outGt = np.zeros(shape)
+            outGt = np.zeros((numExample,)+self.gtShape)
 
         for i in range(numExample):
             data = self.nextImage(onlyGt)
             if(self.getGT):
-                outData[i, :, :, :] = data[0]
+                outData[i] = data[0]
                 outGt[i] = data[1]
             elif(onlyGt):
                 outGt[i] = data
             else:
-                outData[i, :, :, :] = data
+                outData[i] = data
         if(self.getGT):
             return (outData, outGt)
         else:
@@ -470,6 +468,12 @@ class vocObj(imageNetDetObj):
                 gt[self.wnToIdx[wnIdx]] = 1
 
         return gt
+
+
+
+
+
+
 
 #if __name__ == "__main__":
 #    trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"

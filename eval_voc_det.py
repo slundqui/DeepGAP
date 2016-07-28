@@ -26,7 +26,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_voc_det_imgnet_weights_vgg/",
+    'runDir':          "/eval_voc_det_ds/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -41,7 +41,7 @@ params = {
     'writeStep':       100, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/voc_det_imgnet_weights.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/voc_det_vgg_ds.ckpt",
     #Input vgg file for preloaded weights
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
