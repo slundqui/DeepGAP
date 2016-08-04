@@ -16,8 +16,7 @@ class TFObj(object):
     def __init__(self, params, inputShape):
         self.loadParams(params)
         self.makeDirs()
-        #self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         self.buildModel(inputShape)
         self.initialize()
         self.writeSummary()

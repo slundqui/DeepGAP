@@ -1,5 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')
+#import matplotlib.pyplot as plt
 from dataObj.pv_image import imageNetVidPvObj
 from tf.SLPVid import SLPVid
 import numpy as np
@@ -13,7 +14,7 @@ trainInputs = [
             "/home/slundquist/mountData/imagenet_pv/train3/S1_3.pvp",
             ]
 trainGts = [
-            "/home/slundquist/mountData/imagenet_pv/train3/GroundTruth3.pvp",
+            "/home/slundquist/mountData/imagenet_pv/gtWrite/GroundTruth3.pvp",
         ]
 trainFilenames = [
             "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame3.txt",
@@ -32,7 +33,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_imagenet_vid/",
+    'runDir':          "/pv_imagenet_vid_8x16/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -47,7 +48,7 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            False,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_vgg_bias.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid.ckpt",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -61,7 +62,8 @@ params = {
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,
-    'numClasses': trainDataObj.numClasses,
+    #'numClasses': trainDataObj.numClasses,
+    'numClasses': 8,
     'idxToName': trainDataObj.idxToName,
     'preTrain': False,
 }

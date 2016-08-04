@@ -48,7 +48,7 @@ class imageObj(object):
         self.doShuffle = shuffle
         self.skip = skip
         self.getGT = getGT
-        self.gtShape = [self.numClasses]
+        self.gtShape = (self.numClasses,)
         self.augument = augument
 
         if(self.doShuffle):
@@ -287,7 +287,7 @@ class imageNetDetObj(imageNetObj):
         #Call superclass constructor
         super(imageNetDetObj, self).__init__(imgList, imgPrefix, metaFilename, False, ext, resizeMethod, normStd, shuffle, skip, seed, augument=augument, getGT=getGT)
         #Class 200 is the distractor class
-        self.gtShape = [14, 14, self.numClasses+1]
+        self.gtShape = (14, 14, self.numClasses+1)
 
     #Must append prefix to filenames and remove image idx
     def convertFilename(self, filename):
@@ -397,7 +397,7 @@ class vocDetObj(imageNetDetObj):
     numClasses = 20
     def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, augument=False):
         super(vocDetObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed, augument=augument)
-        self.gtShape = [7, 7, self.numClasses+1]
+        self.gtShape = (7, 7, self.numClasses+1)
 
     def loadMetaFile(self, metaFilename):
         idxToName = [
@@ -414,7 +414,7 @@ class vocObj(imageNetDetObj):
     numClasses = 20
     def __init__(self, imgList, imgPrefix, gtPrefix, ext=".jpg", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, singleObj=True, augument=False):
         super(vocObj, self).__init__(imgList, imgPrefix, gtPrefix, None, ext, resizeMethod, normStd, shuffle, skip, seed, augument=augument)
-        self.gtShape = [self.numClasses]
+        self.gtShape = (self.numClasses,)
         self.singleObj = singleObj
 
     def loadMetaFile(self, metaFilename):
