@@ -64,6 +64,8 @@ class pvObj(imageObj):
         if(stopIdx >= self.numImages):
             stopIdx = self.numImages
 
+        self.numData = stopIdx - startIdx
+
         self.shuffleIdx = range(startIdx, stopIdx)
         self.doShuffle = shuffle
         self.skip = skip
@@ -125,7 +127,7 @@ class pvObj(imageObj):
         #Update imgIdx
         self.imgIdx = self.imgIdx + self.skip
 
-        if(self.imgIdx >= self.numImages):
+        if(self.imgIdx >= self.numData):
             print "Rewinding"
             self.imgIdx = 0
             if(self.doShuffle):
@@ -496,7 +498,7 @@ class imageNetVidSupObj(imageObj):
         #Update imgIdx
         self.imgIdx = self.imgIdx + self.skip
 
-        if(self.imgIdx >= self.numImages):
+        if(self.imgIdx >= self.numData):
             print "Rewinding"
             self.imgIdx = 0
             if(self.doShuffle):
