@@ -38,8 +38,9 @@ class SLPVid(TFObj):
                 self.pre_inputImage = tf.sparse_tensor_to_dense(tf.SparseTensor(
                         tf.transpose(self.dataIndices, [1, 0]),
                         self.dataValues,
-                        [self.batchSize*inputShape[0], inputShape[1]*inputShape[2]*inputShape[3]]
-                        ))
+                        [self.batchSize*inputShape[0], inputShape[1]*inputShape[2]*inputShape[3]]),
+                        validate_indices=False
+                        )
 
                 self.inputImage = tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
 
@@ -50,8 +51,9 @@ class SLPVid(TFObj):
                     self.pre_gt = tf.sparse_tensor_to_dense(tf.SparseTensor(
                             tf.transpose(self.gtIndices, [1, 0]),
                             self.gtValues,
-                            [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.gtShape[3]]
-                            ))
+                            [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.gtShape[3]]),
+                            validate_indices=False
+                            )
                     self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
                 else:
                     self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
