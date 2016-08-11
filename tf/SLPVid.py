@@ -35,7 +35,6 @@ class SLPVid(TFObj):
                 self.dataIndices = tf.placeholder("int64", [2, None], "dataIndices")
                 self.dataValues = node_variable([None], "dataValues")
 
-                pdb.set_trace()
                 self.pre_inputImage = tf.sparse_tensor_to_dense(tf.SparseTensor(
                         tf.transpose(self.dataIndices, [1, 0]),
                         self.dataValues,
@@ -161,9 +160,14 @@ class SLPVid(TFObj):
             #Get data from dataObj
             data = dataObj.getData(self.batchSize)
             (dataOutY, dataOutX, dataVals) = sp.find(data[0])
-            (gtOutY, gtOutX, gtVals) = sp.find(data[1])
-            feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
-                        self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals}
+
+            if(self.gtSparse):
+                (gtOutY, gtOutX, gtVals) = sp.find(data[1])
+                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
+                            self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals}
+            else:
+                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
+                        self.gt:data[1]}
 
             #feedDict = {self.inputImage: data[0], self.gt: data[1]}
             #Run optimizer
@@ -181,7 +185,10 @@ class SLPVid(TFObj):
         if(plot):
             filename = self.plotDir + "train_" + str(self.timestep)
             gtShape = dataObj.gtShape
-            gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
+            if(self.gtSparse):
+                gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
+            else:
+                gt = data[1]
             self.evalAndPlotCam(feedDict, data, gt, filename)
 
     def evalAndPlotCam(self, feedDict, data, gt, prefix):
@@ -232,7 +239,6 @@ class SLPVid(TFObj):
                 feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
                         self.gt:inGt}
         else:
-            pdb.set_trace()
             feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals}
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)

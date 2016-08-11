@@ -273,6 +273,17 @@ class kittiVidPvObj(pvObj):
             [ny, nx, nf] = imread(self.imgFilenames[0][0]).shape
             self.innerImageShape = (ny, nx, nf)
 
+        #TODO add dnc areas
+        #self.dncFiles = []
+        #for dncFn in dncFilenames:
+        #    self.dncFiles.append(pvpOpen(dncFn, "r"))
+
+        #if(dncFiles[0].header["filetype"] == 2 or dncFiles[0].header["filetype"]==6):
+        #    self.dncSparse = True
+
+        #self.numDnc = len(dncFiles)
+        #assert(self.numDnc == self.numGt)
+
         #Shape is 4d, [depth, height, width, channels]
         self.innerInputShape = (inHeader['ny'], inHeader['nx'], inHeader['nf'])
         self.innerGtShape = (gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
@@ -281,6 +292,8 @@ class kittiVidPvObj(pvObj):
         self.gtShape = (self.numGt, gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
         self.imageShape  = (self.numGt,) + self.innerImageShape
         self.numClasses = self.gtShape[3]
+
+
         self.idxToName = [
                 "distractor",
                 "Car",
@@ -292,6 +305,16 @@ class kittiVidPvObj(pvObj):
                 "Tram",
                 "Misc",
                 ]
+
+        self.lossWeight= [
+                0.34407706,
+                0.89432339,
+                0.95865095,
+                0.90043874,
+                0.99473026,
+                0.95941077,
+                0.97928871,
+                0.96908012]
 
 class imageNetVidSupObj(imageObj):
     #TODO fix this object to reduce copied code

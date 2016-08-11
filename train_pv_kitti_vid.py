@@ -8,18 +8,18 @@ import pdb
 
 #Paths to list of filenames
 trainInputs = [
-            "/home/sheng/mountData/kitti_pv/objdet_train2/S1_0.pvp",
-            "/home/sheng/mountData/kitti_pv/objdet_train2/S1_1.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/S1_0.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/S1_1.pvp",
             ]
 
 trainGts = [
-            "/home/sheng/mountData/kitti_pv/objdet_train2/GroundTruth2.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/GroundTruth2.pvp",
         ]
 trainFilenames = [
-            "/home/sheng/mountData/kitti_pv/objdet_train2/FrameLeft2.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft2.pvp",
         ]
 dncFilenames= [
-            "/home/sheng/mountData/kitti_pv/objdet_train2/DNC2.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
 
 #trainFnPrefix = "/shared/KITTI/objdet/training/"
@@ -30,7 +30,7 @@ testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames,
 
 params = {
     #Base output directory
-    'outDir':          "/home/sheng/mountData/DeepGAP/",
+    'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
     'runDir':          "/pv_kitti_vid_2x2/",
     'tfDir':           "/tfout",
@@ -47,13 +47,13 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            False,
-    'loadFile':        "/home/sheng/mountData/DeepGAP/saved/pv_imagenet_vid_2x4.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4.ckpt",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      10000000, #1000000,
-    'innerSteps':      100, #300,
+    'innerSteps':      1, #300,
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
@@ -66,7 +66,7 @@ params = {
     'numClasses': trainDataObj.numClasses,
     'idxToName': trainDataObj.idxToName,
     'preTrain': False,
-    'lossWeight': None,
+    'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False
 }
