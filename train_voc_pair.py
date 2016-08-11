@@ -8,14 +8,14 @@ import numpy as np
 import pdb
 
 #Paths to list of filenames
-trainImageList = "/shared/VOCdevkit/VOC2007/ImageSets/Main/train_trainval.txt"
-testImageList = "/home/slundquist/mountData/voc/val.txt"
+trainImageList = "/home/sheng/mountData/dataset/VOCdevkit/VOC2007/ImageSets/Main/train_trainval.txt"
+testImageList = "/home/sheng/mountData/voc/val.txt"
 
-trainImagePrefix = "/shared/VOCdevkit/VOC2007/JPEGImages/"
-testImagePrefix = "/shared/VOCdevkit/VOC2007/JPEGImages/"
+trainImagePrefix = "/home/sheng/mountData/dataset/VOCdevkit/VOC2007/JPEGImages/"
+testImagePrefix =  "/home/sheng/mountData/dataset/VOCdevkit/VOC2007/JPEGImages/"
 
-trainGTPrefix = "/shared/VOCdevkit/VOC2007/Annotations/"
-testGTPrefix =  "/shared/VOCdevkit/VOC2007/Annotations/"
+trainGTPrefix = "/home/sheng/mountData/dataset/VOCdevkit/VOC2007/Annotations/"
+testGTPrefix =  "/home/sheng/mountData/dataset/VOCdevkit/VOC2007/Annotations/"
 
 #Get object from which tensorflow will pull data from
 trainDataObj = vocObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="aug", normStd=False, augument=True, singleObj=False)
@@ -23,7 +23,7 @@ testDataObj = vocObj(testImageList, testImagePrefix, testGTPrefix, resizeMethod=
 
 params = {
     #Base output directory
-    'outDir':          "/home/slundquist/mountData/DeepGAP/",
+    'outDir':          "/home/sheng/mountData/DeepGAP/",
     #Inner run directory
     'runDir':          "/voc_vgg_pair/",
     'tfDir':           "/tfout",
@@ -40,11 +40,11 @@ params = {
     'writeStep':       100, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/voc_vgg_pair.ckpt",
+    'loadFile':        "/home/sheng/mountData/DeepGAP/saved/voc_vgg_pair.ckpt",
     #Input vgg file for preloaded weights
-    'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
+    'vggFile':         "/home/sheng/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      10000, #1000000,

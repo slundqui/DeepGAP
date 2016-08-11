@@ -13,18 +13,17 @@ if(len(sys.argv) != 2):
 
 inImageList = sys.argv[1]
 
-
 #trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
 #testImageList = "/home/slundquist/mountData/datasets/imagenet/val_cls.txt"
 
-clsMeta = "/shared/imageNet/devkit/data/meta_det.mat"
+clsMeta = "/home/sheng/mountData/DeepGAP/saved/meta_det.mat"
 
 #Get object from which tensorflow will pull data from
 evalDataObj = evalObj(inImageList, clsMeta, resizeMethod="crop", normStd=False)
 
 params = {
     #Base output directory
-    'outDir':          "/home/slundquist/mountData/DeepGAP/",
+    'outDir':          "/home/sheng/mountData/DeepGAP/",
     #Inner run directory
     'runDir':          "/imagenet_eval/",
     'tfDir':           "/tfout",
@@ -41,9 +40,9 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
+    'loadFile':        "/home/sheng/mountData/DeepGAP/saved/imagenet_det.ckpt",
     #Input vgg file for preloaded weights
-    'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
+    'vggFile':         "/home/sheng/mountData/DeepGAP/saved/imagenet-vgg-verydeep-16.mat",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######

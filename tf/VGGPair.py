@@ -96,7 +96,7 @@ class VGGPair(TFObj):
                 self.h_conv5_3 = tf.nn.relu(conv2d(self.h_conv5_2, self.W_conv5_3, "conv5_2") + self.B_conv5_3)
                 self.h_pool5 = maxpool_2x2(self.h_conv5_3, "pool5")
 
-        with tf.device('cpu:0'):
+        #with tf.device('cpu:0'):
 
             self.keep_prob = tf.placeholder(tf.float32)
             with tf.name_scope("FC6"):
@@ -116,7 +116,8 @@ class VGGPair(TFObj):
             with tf.name_scope("FC8"):
                 self.W_fc8 = weight_variable_xavier([4096, 20], "w_fc8")
                 self.B_fc8 = bias_variable([20], "b_fc8")
-                self.est = tf.nn.softmax(tf.matmul(self.drop_h_fc7, self.W_fc8, name="fc8") + self.B_fc8)
+                #self.est = tf.nn.softmax(tf.matmul(self.drop_h_fc7, self.W_fc8, name="fc8") + self.B_fc8)
+                self.est = tf.matmul(self.drop_h_fc7, self.W_fc8, name="fc8") + self.B_fc8
 
             with tf.name_scope("Loss"):
                 #Grab positive and negative classes as needed
@@ -124,7 +125,7 @@ class VGGPair(TFObj):
                 self.negArray = tf.expand_dims(self.notGt*self.est, dim=2)
                 #tf broadcasting should take care of this to make this a [batch, class, class] matrix
                 self.cSum = (1 - self.posArray) + self.negArray
-                self.pairLoss = tf.reduce_sum(self.cSum, reduction_indices=[1, 2])
+                self.pairLoss = tf.reduce_mean(self.cSum, reduction_indices=[1, 2])
                 self.loss = tf.reduce_mean(tf.nn.relu(self.pairLoss))
 
                 #self.loss = tf.reduce_mean(-tf.reduce_sum(self.gt * tf.log(self.est+self.epsilon), reduction_indices=[1]))

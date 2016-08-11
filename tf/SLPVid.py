@@ -34,6 +34,8 @@ class SLPVid(TFObj):
                 #We represent inputImage and gt as sparse matrices, with indices/values
                 self.dataIndices = tf.placeholder("int64", [2, None], "dataIndices")
                 self.dataValues = node_variable([None], "dataValues")
+
+                pdb.set_trace()
                 self.pre_inputImage = tf.sparse_tensor_to_dense(tf.SparseTensor(
                         tf.transpose(self.dataIndices, [1, 0]),
                         self.dataValues,
@@ -53,7 +55,7 @@ class SLPVid(TFObj):
                             ))
                     self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
                 else:
-                    self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtSHape[1], self.gtShape[2], self.gtShape[3]])
+                    self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
 
                 self.select_gt = self.gt[:, :, :, :, 0:self.numClasses]
 
@@ -67,9 +69,9 @@ class SLPVid(TFObj):
                 #Pool over spatial dimensions to be 2x2
                 self.inputPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, 1, yPool, xPool, 1], strides=[1, 1, yPool, xPool, 1], padding="SAME")
 
-                self.camPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, 1, yPool, xPool, 1], strides=[1, 1, yPool/8, xPool/8, 1], padding="SAME")
+                self.camPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, 1, yPool, xPool, 1], strides=[1, 1, 1, 1, 1], padding="SAME")
 
-                self.weight = weight_variable_xavier([4, 1, 1, inputShape[3], self.numClasses], "weight")
+                self.weight = weight_variable_xavier([inputShape[0], 1, 1, inputShape[3], self.numClasses], "weight")
                 self.bias = bias_variable([self.numClasses], "bias" )
 
                 self.h_conv = tf.nn.conv3d(self.inputPooled, self.weight, [1, 1, 1, 1, 1], padding="VALID") + self.bias
@@ -79,7 +81,8 @@ class SLPVid(TFObj):
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
-                self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize, 16, 32, self.numClasses]), [0, 3, 1, 2])
+
+                self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize, inputShape[1], inputShape[2], self.numClasses]), [0, 3, 1, 2])
 
                 #Get ranking from h_conv
                 self.classRank = tf.reduce_mean(self.reshape_cam, reduction_indices=[2, 3])
@@ -221,10 +224,15 @@ class SLPVid(TFObj):
     def evalModel(self, inData, inGt, inImg, gtShape, plot=True):
         (dataOutY, dataOutX, dataVals) = sp.find(inData)
         if(inGt != None):
-            (gtOutY, gtOutX, gtVals) = sp.find(inGt)
-            feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
+            if(self.gtSparse):
+                (gtOutY, gtOutX, gtVals) = sp.find(inGt)
+                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
                         self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals}
+            else:
+                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
+                        self.gt:inGt}
         else:
+            pdb.set_trace()
             feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals}
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)

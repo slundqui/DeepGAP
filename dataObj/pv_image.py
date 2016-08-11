@@ -7,7 +7,7 @@ import pdb
 import numpy as np
 
 class pvObj(imageObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, getSparse=True, startIdx=0, stopIdx=-1):
+    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, startIdx=0, stopIdx=-1):
 
         self.resizeMethodParam=resizeMethod
         self.normStd = False
@@ -16,8 +16,6 @@ class pvObj(imageObj):
         self.numGt = len(trainGts)
 
         self.fnPrefix = fnPrefix
-
-        self.getSparse = getSparse
 
         self.inputFiles = []
         self.gtFiles = []
@@ -32,12 +30,14 @@ class pvObj(imageObj):
 
         #If file is sparse
         if(self.gtFiles[0].header['filetype'] != 6 and self.gtFiles[0].header['filetype'] != 2):
-            if(self.getSparse):
-                print "GT File is not sparse, can't get sparse"
-                pdb.set_trace()
             self.gtSparse = False
         else:
             self.gtSparse = True
+
+        if(self.inputFiles[0].header['filetype'] != 6 and self.inputFiles[0].header['filetype'] != 2):
+            self.dataSparse = False
+        else:
+            self.dataSparse = True
 
 
         for imageFn in trainFilenames:
@@ -99,31 +99,28 @@ class pvObj(imageObj):
                 fn = fns[startIdx]
                 imgOut[i] = imread(fn)
 
-        if(self.getSparse):
+        if(self.dataSparse):
             dataOut = []
             for i, f in enumerate(self.inputFiles):
                 out = f.read(startIdx, startIdx+1)["values"]
                 dataOut.append(out)
             dataOut = vstack(dataOut, format="csr")
+        else:
+            dataOut = np.zeros(self.inputShape)
+            for i, f in enumerate(self.inputFiles):
+                dataOut[i] = f.read(startIdx, startIdx+1)["values"][0, :, :, :]
 
-            if(self.getGT):
+        if(self.getGT):
+            if(self.gtSparse):
                 gtOut = []
                 for i, f in enumerate(self.gtFiles):
                     out = f.read(startIdx, startIdx+1)["values"]
                     gtOut.append(out)
                 gtOut = vstack(gtOut, format="csr")
-        else:
-            dataOut = np.zeros(self.inputShape)
-            for i, f in enumerate(self.inputFiles):
-                dataOut[i] = f.read(startIdx, startIdx+1)["values"].toarray().reshape(self.innerInputShape)
-
-            if(self.getGT):
+            else:
                 gtOut = np.zeros(self.gtShape)
                 for i, f in enumerate(self.gtFiles):
-                    if(self.gtSparse):
-                        gtOut[i] = f.read(startIdx, startIdx+1)["values"].toarray().reshape(self.innerGtShape)
-                    else:
-                        gtOut[i] = f.read(startIdx, startIdx+1)["values"][0, :, :, :]
+                    gtOut[i] = f.read(startIdx, startIdx+1)["values"][0, :, :, :]
 
         #Update imgIdx
         self.imgIdx = self.imgIdx + self.skip
@@ -141,37 +138,37 @@ class pvObj(imageObj):
     #Gets numExample images and stores it into an outer dimension.
     #This is what TF object calls to get images for training
     def getData(self, numExample):
-        if(self.getSparse):
+        if(self.dataSparse):
             outData = []
-            if(self.getGT):
-                outGt = []
         else:
             outData = np.zeros((numExample,) + self.inputShape)
-            if(self.getGT):
+
+        if(self.getGT):
+            if(self.gtSparse):
+                outGt = []
+            else:
                 outGt = np.zeros((numExample,)+self.gtShape)
 
         outImg = np.zeros((numExample,) + self.imageShape)
 
         for i in range(numExample):
             data = self.nextImage()
-            if(self.getSparse):
-                if(self.getGT):
-                    outData.append(data[0])
-                    outGt.append(data[1])
-                    outImg[i] = data[2]
-                else:
-                    outData.append(data[0])
-                    outImg[i] = data[1]
+            if(self.dataSparse):
+                outData.append(data[0])
             else:
-                if(self.getGT):
-                    outData[i] = data[0]
-                    outGt[i] = data[1]
-                    outImg[i] = data[2]
+                outData[i] = data[0]
+            if(self.getGT):
+                if(self.gtSparse):
+                    outGt.append(data[1])
                 else:
-                    outData[i] = data[0]
-                    outImg[i] = data[1]
-        if(self.getSparse):
+                    outGt[i] = data[1]
+                outImg[i] = data[2]
+            else:
+                outImg[i] = data[1]
+
+        if(self.dataSparse):
             outData = vstack(outData, format="csr")
+        if(self.gtSparse):
             outGt = vstack(outGt, format="csr")
 
         if(self.getGT):
@@ -181,8 +178,8 @@ class pvObj(imageObj):
 
 
 class imageNetVidPvObj(pvObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, getSparse=True, startIdx = 0, stopIdx=-1):
-        super(imageNetVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, getSparse, startIdx, stopIdx)
+    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, startIdx = 0, stopIdx=-1):
+        super(imageNetVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, startIdx, stopIdx)
 
         inHeader = self.inputFiles[0].header
         gtHeader =  self.gtFiles[0].header
@@ -264,8 +261,8 @@ class imageNetVidPvObj(pvObj):
 
 
 class kittiVidPvObj(pvObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, dncFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, getSparse=True, startIdx = 0, stopIdx=-1):
-        super(kittiVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, getSparse, startIdx, stopIdx)
+    def __init__(self, trainInputs, trainGts, trainFilenames, dncFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, startIdx = 0, stopIdx=-1):
+        super(kittiVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, startIdx, stopIdx)
 
         inHeader = self.inputFiles[0].header
         gtHeader =  self.gtFiles[0].header
@@ -297,6 +294,7 @@ class kittiVidPvObj(pvObj):
                 ]
 
 class imageNetVidSupObj(imageObj):
+    #TODO fix this object to reduce copied code
     def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, getSparse=True):
 
         self.resizeMethodParam=resizeMethod
