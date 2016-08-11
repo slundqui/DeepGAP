@@ -236,7 +236,7 @@ class VGGDetGap(TFObj):
         camIdxs = self.sess.run(self.eval_idx, feed_dict=feedDict)
         camVals = self.sess.run(self.eval_vals, feed_dict=feedDict)
         np_w_gap = self.sess.run(self.W_gap, feed_dict=feedDict)
-        plotDetCam(prefix, img, gt, cam, camIdxs, camVals, self.idxToName, np_w_gap)
+        plotDetCam(prefix, img, gt, cam, camIdxs, camVals, self.idxToName)
 
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set

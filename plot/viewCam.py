@@ -98,7 +98,11 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
     (nbatch, nyImage, nxImage, nfImage) = inImage.shape
     (nbatch, totCam, nyCam, nxCam) = cam.shape
     #TODO fix this for other plots
-    (nbatch, nyGT, nxGT, numClass) = gt.shape
+    if(gt!=None):
+        (nbatch, nyGT, nxGT, numClass) = gt.shape
+        yFactorGt = nyImage/nyGT
+        xFactorGt = nxImage/nxGT
+
     numCam = len(idxs[0, :])
 
     assert(nyImage%nyCam == 0)
@@ -106,9 +110,6 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
 
     yFactorCam = nyImage/nyCam
     xFactorCam = nxImage/nxCam
-
-    yFactorGt = nyImage/nyGT
-    xFactorGt = nxImage/nxGT
 
     colormap = cm.get_cmap('jet')
 
