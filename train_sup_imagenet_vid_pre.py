@@ -1,17 +1,20 @@
 import matplotlib
 matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
-from dataObj.pv_image import imageNetVidPvObj
-from tf.SLPVid import SLPVid
+from dataObj.pv_image import imageNetVidSupObj
+from tf.SupVid import SupVid
 import numpy as np
 import pdb
 
 #Paths to list of filenames
 trainInputs = [
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_0.pvp",
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_1.pvp",
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_2.pvp",
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_3.pvp",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame0.txt",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame1.txt",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame2.txt",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame3.txt",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame4.txt",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame5.txt",
+            "/home/slundquist/mountData/imagenet_pv/train3/timestamps/Frame6.txt",
             ]
 
 trainGts = [
@@ -22,10 +25,13 @@ trainFilenames = [
         ]
 
 testInputs = [
-            "/home/slundquist/mountData/imagenet_pv/val_7objects3/S1_0.pvp",
-            "/home/slundquist/mountData/imagenet_pv/val_7objects3/S1_1.pvp",
-            "/home/slundquist/mountData/imagenet_pv/val_7objects3/S1_2.pvp",
-            "/home/slundquist/mountData/imagenet_pv/val_7objects3/S1_3.pvp",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame0.txt",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame1.txt",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame2.txt",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame3.txt",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame4.txt",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame5.txt",
+            "/home/slundquist/mountData/imagenet_pv/val_7objects3/timestamps/Frame6.txt",
             ]
 
 testGts = [
@@ -39,15 +45,14 @@ trainFnPrefix = "/shared/imageNet/vid2015_128x64/"
 testFnPrefix = "/shared/imageNet/vid2015_128x64/val_7objects/"
 
 #Get object from which tensorflow will pull data from
-trainDataObj = imageNetVidPvObj(trainInputs, trainGts, trainFilenames, trainFnPrefix, shuffle=True)
-testDataObj = imageNetVidPvObj(testInputs, testGts, testFilenames, testFnPrefix, shuffle=True)
-
+trainDataObj = imageNetVidSupObj(trainInputs, trainGts, trainFilenames, trainFnPrefix, shuffle=True)
+testDataObj  = imageNetVidSupObj(testInputs, testGts, testFilenames, testFnPrefix, shuffle=True)
 
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_imagenet_vid_2x4_reweight/",
+    'runDir':          "/sup_imagenet_vid_2x4_reweight_pre/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -61,10 +66,10 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4_reweight.ckpt",
+    'load':            False,
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_imagenet_vid_2x4.ckpt",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/cpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      10000000, #1000000,
@@ -80,17 +85,17 @@ params = {
     #'numClasses': trainDataObj.numClasses,
     'numClasses': 8,
     'idxToName': trainDataObj.idxToName,
-    'preTrain': False,
+    'preTrain': True,
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
-    'gtSparse':True,
+    'gtSparse': True,
 }
 
 
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = SLPVid(params, trainDataObj.inputShape)
+tfObj = SupVid(params, trainDataObj.inputShape)
 
 print "Done init"
 tfObj.runModel(trainDataObj, testDataObj = testDataObj)
