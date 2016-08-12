@@ -13,7 +13,7 @@ trainInputs = [
             ]
 
 trainGts = [
-            "/home/slundquist/mountData/kitti_pv/objdet_train2/GroundTruth2.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/GroundTruth2Background.pvp",
         ]
 trainFilenames = [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft2.pvp",

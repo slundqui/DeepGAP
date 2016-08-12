@@ -309,14 +309,16 @@ class kittiVidPvObj(pvObj):
                 ]
 
         self.lossWeight= [
-                0.34407706,
-                0.89432339,
-                0.95865095,
-                0.90043874,
-                0.99473026,
-                0.95941077,
-                0.97928871,
-                0.96908012]
+                0.32837274,
+                0.78461278,
+                0.96529868,
+                0.9864221 ,
+                0.96730679,
+                0.99826956,
+                0.9866716 ,
+                0.99319898,
+                0.98984676,
+                ]
 
 class imageNetVidSupObj(imageObj):
     #TODO fix this object to reduce copied code

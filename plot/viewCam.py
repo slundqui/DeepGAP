@@ -26,13 +26,14 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName):
         sortedCam = cam[b, idxs[b, :], :, :]
 
         numTotal = numCam + 1
-        xTile = int(np.ceil(np.sqrt(numTotal)))
-        yTile = int(np.ceil(float(numTotal)/xTile))
+        yTile = int(np.ceil(np.sqrt(numTotal)))
+        xTile = int(np.ceil(float(numTotal)/yTile))
+
         image = inImage[b, :, :, :]
         norm_image = (image - np.min(image))/(np.max(image) - np.min(image))
 
         #Plot image first
-        f, axarr = plt.subplots(yTile, xTile, figsize=(10, 7.5))
+        f, axarr = plt.subplots(yTile, xTile, figsize=(7.5, 10))
         avgCam = np.mean(cam[b, :, :, :], axis=0)
 
         #camImg = sortedCam[0, :, :]
@@ -55,7 +56,7 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName):
                     if(gtIdx!=None):
                         strLabel = idxToName[gtIdx[b]].split(',')[0]
                         axarr[0, 0].set_title(strLabel, fontsize=fontsize)
-                    plt.colorbar(axx, ax = axarr[0, 0])
+                    #plt.colorbar(axx, ax = axarr[0, 0])
                 elif(camIdx < 5):
                 #else:
                     if(camIdx < numCam):
@@ -69,7 +70,7 @@ def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName):
                         resizeCam = zoom(camImg, [yFactor, xFactor])
                         axarr[y, x].imshow(norm_image)
                         axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=minCam, alpha=.6)
-                        plt.colorbar(axx, ax = axarr[y, x])
+                        #plt.colorbar(axx, ax = axarr[y, x])
                         #Take only label after first comma
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel + ": " + str('%.2g'%vals[b, camIdx]), fontsize=fontsize)
@@ -148,14 +149,14 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                     if(gt!=None):
                         strLabel = idxToName[np.argmax(np.mean(gt[b, :, :, :], axis=(0, 1)))].split(',')[0]
                         axarr[0, 0].set_title(strLabel, fontsize=fontsize)
-                    plt.colorbar(axx, ax = axarr[0, 0])
+                    #plt.colorbar(axx, ax = axarr[0, 0])
                 elif(camIdx < 5):
                     if(gt != None):
                         gtImg = gt[b, :, :, idxs[b, camIdx]]
                         resizeGT = zoom(gtImg, [yFactorGt, xFactorGt])
                         axarr[y, x].imshow(norm_image)
                         axx = axarr[y, x].imshow(resizeGT, cmap=colormap, vmax=1, vmin=0, alpha=.6)
-                        plt.colorbar(axx, ax = axarr[y, x])
+                        #plt.colorbar(axx, ax = axarr[y, x])
                         #Take only label after first comma
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel+ " gt", fontsize=fontsize)
@@ -172,7 +173,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                         resizeCam = zoom(camImg, [yFactorCam, xFactorCam])
                         axarr[y, x].imshow(norm_image)
                         axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=0, alpha=.6)
-                        plt.colorbar(axx, ax = axarr[y, x])
+                        #plt.colorbar(axx, ax = axarr[y, x])
                         #Take only label after first comma
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel + ": " + str('%.2g'%vals[b, camIdx]), fontsize=fontsize)
