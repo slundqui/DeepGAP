@@ -56,24 +56,27 @@ class SupVid(TFObj):
 
             with tf.name_scope("Pool"):
                 #Pool over spatial dimensions to be 2x2
-                self.inputPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 1, 8, 8, 1], strides=[1, 1, 8, 8, 1], padding="SAME")
+                self.inputPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 4, 8, 8, 1], strides=[1, 4, 8, 8, 1], padding="SAME")
+                self.camPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 4, 8
+                    , 8, 1], strides=[1, 4, 1, 1, 1], padding="SAME")
 
-                self.camPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 1, 8, 8, 1], strides=[1, 1, 1, 1, 1], padding="SAME")
-
-                self.weight = weight_variable_xavier([4, 1, 1, 3072, self.numClasses], "weight")
+                self.weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "weight")
                 self.bias = bias_variable([self.numClasses], "bias" )
 
-                self.h_conv = tf.nn.conv3d(self.inputPooled, self.weight, [1, 1, 1, 1, 1], padding="VALID") + self.bias
-                self.cam = tf.nn.conv3d(self.camPooled, self.weight, [1, 1, 1, 1, 1], padding="VALID") + self.bias
+                self.r_inputPooled = tf.squeeze(self.inputPooled, squeeze_dims=[1])
+                self.r_camPooled = tf.squeeze(self.camPooled, squeeze_dims=[1])
+
+                self.h_conv = tf.nn.conv2d(self.r_inputPooled, self.weight, [1, 1, 1, 1], padding="VALID") + self.bias
+                self.cam = tf.nn.conv2d(self.r_camPooled, self.weight, [1, 1, 1, 1], padding="VALID") + self.bias
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
-                self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize, 16, 32, self.numClasses]), [0, 3, 1, 2])
+                self.reshape_cam = tf.transpose(self.cam, [0, 3, 1, 2])
 
                 #Get ranking from h_conv
                 self.classRank = tf.reduce_mean(self.reshape_cam, reduction_indices=[2, 3])
 
-                self.est = pixelSoftmax5d(self.h_conv)
+                self.est = pixelSoftmax(self.h_conv)
                 #self.est = self.h_conv
 
             with tf.name_scope("Loss"):
@@ -97,7 +100,7 @@ class SupVid(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:8] * self.gt* tf.log(self.est+self.epsilon), reduction_indices=4))
+                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:8] * self.gt* tf.log(self.est+self.epsilon), reduction_indices=3))
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):

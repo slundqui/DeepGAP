@@ -363,6 +363,7 @@ class imageNetVidSupObj(imageObj):
         numInputFrames = np.min([len(fnlist) for fnlist in self.inputFilenames])
         numGtFrames = np.min([f.header["nbands"] for f in self.gtFiles])
         self.numImages = np.min([numInputFrames, numGtFrames])
+        self.numData = self.numImages
 
         gtHeader =  self.gtFiles[0].header
 
