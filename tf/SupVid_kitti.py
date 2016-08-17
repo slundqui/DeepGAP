@@ -5,6 +5,7 @@ from loadVgg import loadWeights
 from utils import *
 import os
 from plot.viewCam import plotDetCam
+from plot.plotWeights import plot_weights
 from base import TFObj
 import scipy.sparse as sp
 #import matplotlib.pyplot as plt
@@ -221,10 +222,26 @@ class SupVid_kitti(TFObj):
                 gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
             else:
                 gt = data[1]
+            print "Plotting"
+            self.evalAndPlotWeights(feedDict, filename)
             self.evalAndPlotCam(feedDict, data, gt, filename)
 
+    def evalAndPlotWeights(self, feedDict, prefix):
+        np_weights = self.sess.run(self.h_weight, feed_dict=feedDict)
+        (ntime, ny, nx, nfns, nf) = np_weights.shape
+        np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, 3, 2, nf))
+        for s in range(2):
+            filename = prefix
+            if(s == 0):
+                filename += "_left"
+            elif(s == 1):
+                filename += "_right"
+            for t in range(ntime):
+                filename += "_time" + str(t) + ".png"
+                plotWeights = np_weights_reshape[t, :, :, :, s, :]
+                plot_weights(plotWeights, filename, [3, 0, 1, 2])
+
     def evalAndPlotCam(self, feedDict, data, gt, prefix):
-        print "Plotting"
 
         #We need feed_dict here
         cam = self.sess.run(self.reshape_cam, feed_dict=feedDict)
