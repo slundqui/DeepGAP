@@ -37,6 +37,12 @@ class imageObj(object):
     #the max dimension to inMaxDim
     def __init__(self, imgList, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True, augument=False):
         self.resizeMethodParam=resizeMethod
+
+        if(self.resizeMethodParam == "aug"):
+            self.resizeMethod = None
+        else:
+            self.resizeMethod = self.resizeMethodParam
+
         self.normStd = normStd
         if(imgList.split(".")[-1] == "txt"):
             self.imgFiles = readList(imgList)
@@ -50,6 +56,7 @@ class imageObj(object):
         self.getGT = getGT
         self.gtShape = (self.numClasses,)
         self.augument = augument
+        self.mean = None
 
         if(self.doShuffle):
             #Initialize random seed
@@ -106,34 +113,30 @@ class imageObj(object):
         else:
             self.resizeMethod = self.resizeMethodParam
 
+        yRatio = float(self.inputShape[0])/ny
+        xRatio = float(self.inputShape[1])/nx
         if(self.resizeMethod == "crop"):
-            if(ny > nx):
-                #Get percentage of scale
-                scale = float(self.inputShape[1])/nx
-                targetNy = int(round(ny * scale))
+            if(xRatio > yRatio):
+                targetNy = int(round(ny * xRatio))
                 scaleImage = imresize(inImage, (targetNy, self.inputShape[1]))
                 cropTop = (targetNy-self.inputShape[0])/2
                 outImage = scaleImage[cropTop:cropTop+self.inputShape[0], :, :]
-            elif(ny <= nx):
-                #Get percentage of scale
-                scale = float(self.inputShape[0])/ny
-                targetNx = int(round(nx * scale))
+            elif(xRatio <= yRatio):
+                targetNx = int(round(nx * yRatio))
                 scaleImage = imresize(inImage, (self.inputShape[0], targetNx))
                 cropLeft = (targetNx-self.inputShape[1])/2
                 outImage = scaleImage[:, cropLeft:cropLeft+self.inputShape[1], :]
         elif(self.resizeMethod == "pad"):
-            if(ny > nx):
+            if(xRatio > yRatio):
                 #Get percentage of scale
-                scale = float(self.inputShape[0])/ny
-                targetNx = int(round(nx * scale))
+                targetNx = int(round(nx * yRatio))
                 scaleImage = imresize(inImage, (self.inputShape[0], targetNx))
                 padLeft = (self.inputShape[1]-targetNx)/2
                 padRight = self.inputShape[1] - (padLeft + targetNx)
                 outImage = np.pad(scaleImage, ((0, 0), (padLeft, padRight), (0, 0)), 'constant')
-            elif(ny <= nx):
+            elif(xRatio <= yRatio):
                 #Get percentage of scale
-                scale = float(self.inputShape[1])/nx
-                targetNy = int(round(ny * scale))
+                targetNy = int(round(ny * xRatio))
                 scaleImage = imresize(inImage, (targetNy, self.inputShape[1]))
                 padTop = (self.inputShape[0]-targetNy)/2
                 padBot = self.inputShape[0] - (padTop + targetNy)
@@ -324,26 +327,26 @@ class imageNetDetObj(imageNetObj):
         ny = int(root.find('size').find('height').text)
         #Get scale factor and crop/pad factor
         #offset is in terms before the resize
+
+        yRatio = float(self.gtShape[0])/ny
+        xRatio = float(self.gtShape[1])/nx
+
         if(self.resizeMethod=="crop"):
-            if(nx > ny):
-                scaleFactor = float(self.gtShape[0])/ny
-                targetNx = int(round(nx * scaleFactor))
+            if(yRatio > xRatio):
+                targetNx = int(round(nx * yRatio))
                 xOffset = int(round(float(self.gtShape[1] - targetNx)/2))
                 yOffset = 0
             else:
-                scaleFactor = float(self.gtShape[1])/nx
-                targetNy = int(round(ny * scaleFactor))
+                targetNy = int(round(ny * xRatio))
                 xOffset = 0
                 yOffset = int(round(float(self.gtShape[0] - targetNy)/2))
         elif(self.resizeMethod=="pad"):
-            if(nx > ny):
-                scaleFactor = float(self.gtShape[1])/nx
-                targetNy = int(round(ny*scaleFactor))
+            if(yRatio > xRatio):
+                targetNy = int(round(ny*xRatio))
                 xOffset = 0
                 yOffset = int(round(float(self.gtShape[0]-targetNy)/2))
             else:
-                scaleFactor = float(self.gtShape[0])/ny
-                targetNx = int(round(nx*scaleFactor))
+                targetNx = int(round(nx*yRatio))
                 xOffset= int(round(float(self.gtShape[1]-targetNx)/2))
                 yOffset = 0
         else:
