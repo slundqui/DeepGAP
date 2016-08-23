@@ -22,11 +22,12 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
     #Placeholder for ground truth array
     tf_inGt = tf.placeholder("float", shape=[None, dataObj.inputShape[0], dataObj.inputShape[1], 1], name="inGt")
 
-    with tf.device('/gpu:0'):
+    with tf.device('/gpu:1'):
         tf_area_bb = tf.squeeze(tf.reduce_sum(tf_inGt, reduction_indices=[1, 2, 3], keep_dims=True), squeeze_dims=[3])
 
         #We avg pool per window size on each gt
-        tf_iou = [] for wSize in windowSize:
+        tf_iou = []
+        for wSize in windowSize:
             (ySize, xSize) = wSize
             tf_area_wSize = ySize * xSize
             tf_avg_pool = tf.squeeze(tf.nn.avg_pool(tf_inGt, [1, ySize, xSize, 1], [1, strideY, strideX, 1], "SAME"), squeeze_dims=[3])

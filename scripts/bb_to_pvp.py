@@ -19,7 +19,7 @@ def bb_to_pvp(dataObj, windowSize, imageBatch, gtShape, outPrefix):
     #Placeholder for ground truth array
     tf_inGt = tf.placeholder("float", shape=[None, dataObj.inputShape[0], dataObj.inputShape[1], 1], name="inGt")
 
-    with tf.device('/gpu:0'):
+    with tf.device('/cpu:0'):
         tf_area_bb = tf.squeeze(tf.reduce_sum(tf_inGt, reduction_indices=[1, 2, 3], keep_dims=True), squeeze_dims=[3])
 
         #We avg pool per window size on each gt
@@ -27,7 +27,9 @@ def bb_to_pvp(dataObj, windowSize, imageBatch, gtShape, outPrefix):
         for wSize in windowSize:
             (ySize, xSize) = wSize
             tf_area_wSize = ySize * xSize
-            tf_avg_pool = tf.squeeze(tf.nn.avg_pool(tf_inGt, [1, ySize, xSize, 1], [1, strideY, strideX, 1], "SAME"), squeeze_dims=[3])
+            #TF Average pool only averages over valid patches, so we pad with zeros
+            tf_padGt = tf.pad(tf_inGt, [[0, 0], [ySize/2, (ySize/2)-1], [xSize/2, (xSize/2)-1], [0, 0]])
+            tf_avg_pool = tf.squeeze(tf.nn.avg_pool(tf_padGt, [1, ySize, xSize, 1], [1, strideY, strideX, 1], "VALID"), squeeze_dims=[3])
             #Undo average pool to find intersection
             tf_intersection = tf_avg_pool * tf_area_wSize
             #Save final node

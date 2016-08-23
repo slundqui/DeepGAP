@@ -52,7 +52,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/sup_imagenet_vid_2x4_reweight_pre/",
+    'runDir':          "/sup_imagenet_vid_2x4_tpool_pre/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",

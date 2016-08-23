@@ -172,7 +172,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
 
                         resizeCam = zoom(camImg, [yFactorCam, xFactorCam])
                         axarr[y, x].imshow(norm_image)
-                        axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=0, alpha=.6)
+                        axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=minCam, alpha=.6)
                         #plt.colorbar(axx, ax = axarr[y, x])
                         #Take only label after first comma
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]

@@ -52,7 +52,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/sup_imagenet_vid_2x4_reweight/",
+    'runDir':          "/sup_imagenet_vid_2x4_dropout/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -66,8 +66,8 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_imagenet_vid_2x4_reweight.ckpt",
+    'load':            False,
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_imagenet_vid_2x4_tpool.ckpt",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -77,7 +77,7 @@ params = {
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
-    'learningRate':    1e-5,
+    'learningRate':    1e-4,
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,

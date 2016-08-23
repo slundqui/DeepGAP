@@ -100,7 +100,7 @@ class TFObj(object):
         uninitialized_variables = list(tf.get_variable(name) for name in
                                        session.run(tf.report_uninitialized_variables(list_of_variables)))
         session.run(tf.initialize_variables(uninitialized_variables))
-        return unintialized_variables
+        return uninitialized_variables
 
     #Initializes session.
     def initSess(self):

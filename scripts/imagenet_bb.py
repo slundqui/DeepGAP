@@ -10,6 +10,9 @@ Each value will contain the max IOU of each anchor bb
 import matplotlib.pyplot as plt
 
 from dataObj.imagenet_det import imageNetDetBBObj
+from bb_obj import bb_obj
+from bb_mask import bb_mask
+
 #Paths to list of filenames
 trainImageList = "/shared/imageNet/DET/ILSVRC2015/ImageSets/DET/train.txt"
 #testImageList = "/shared/imageNet/DET/ILSVRC2015/ImageSets/DET/val.txt"
@@ -40,5 +43,6 @@ outPrefix = "/home/slundquist/mountData/imagenet_iou/imagenet_iou"
 trainDataObj = imageNetDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, clsMeta, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567)
 #testDataObj = imageNetDetBBObj(testImageList, testImagePrefix, testGTPrefix, clsMeta, resizeMethod="crop", normStd=False, shuffle=False)
 
+bb_mask(windowSize, gtShape, trainDataObj.inputShape, outPrefix)
 bb_obj(trainDataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh)
 

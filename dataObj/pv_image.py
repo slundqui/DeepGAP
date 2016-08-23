@@ -14,6 +14,7 @@ class pvObj(imageObj):
 
         self.numInputs = len(trainInputs)
         self.numGt = len(trainGts)
+        self.numImgsTime = len(trainFilenames)
 
         self.fnPrefix = fnPrefix
 
@@ -53,7 +54,7 @@ class pvObj(imageObj):
                 print "Fn prefix", imageFn[-4:], "not recognized"
                 pdb.set_trace()
 
-        assert(len(self.imgFilenames) == len(self.gtFiles))
+        #assert(len(self.imgFilenames) == len(self.gtFiles))
 
         numInputFrames = np.min([f.header["nbands"] for f in self.inputFiles])
         numGtFrames = np.min([f.header["nbands"] for f in self.gtFiles])
@@ -192,7 +193,7 @@ class imageNetVidPvObj(pvObj):
         self.innerImageShape = (64, 128, 3)
         self.inputShape = (self.numInputs, inHeader['ny'], inHeader['nx'], inHeader['nf'])
         self.gtShape = (self.numGt, gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
-        self.imageShape  = (self.numGt, 64, 128, 3)
+        self.imageShape  = (self.numImgsTime, 64, 128, 3)
         self.numClasses = self.gtShape[3]
         self.idxToName = [
                 "distractor",
@@ -268,6 +269,7 @@ class kittiVidPvObj(pvObj):
 
         inHeader = self.inputFiles[0].header
         gtHeader =  self.gtFiles[0].header
+
         if(self.imgPvp[0] == True):
             imgHeader = self.imgFilenames[0].header
             self.innerImageShape = (imgHeader['ny'], imgHeader['nx'], imgHeader['nf'])
@@ -275,24 +277,26 @@ class kittiVidPvObj(pvObj):
             [ny, nx, nf] = imread(self.imgFilenames[0][0]).shape
             self.innerImageShape = (ny, nx, nf)
 
-        #TODO add dnc areas
-        #self.dncFiles = []
-        #for dncFn in dncFilenames:
-        #    self.dncFiles.append(pvpOpen(dncFn, "r"))
+        self.dncFiles = []
+        for dncFn in dncFilenames:
+            self.dncFiles.append(pvpOpen(dncFn, "r"))
 
-        #if(dncFiles[0].header["filetype"] == 2 or dncFiles[0].header["filetype"]==6):
-        #    self.dncSparse = True
+        self.dncSparse = False
+        if(self.dncFiles[0].header["filetype"] == 2 or self.dncFiles[0].header["filetype"]==6):
+            self.dncSparse = True
 
-        #self.numDnc = len(dncFiles)
-        #assert(self.numDnc == self.numGt)
+        self.numDnc = len(self.dncFiles)
+        dncHeader =  self.dncFiles[0].header
 
         #Shape is 4d, [depth, height, width, channels]
         self.innerInputShape = (inHeader['ny'], inHeader['nx'], inHeader['nf'])
         self.innerGtShape = (gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
+        self.innerDncShape = (dncHeader['ny'], dncHeader['nx'], dncHeader['nf'])
 
         self.inputShape = (self.numInputs, inHeader['ny'], inHeader['nx'], inHeader['nf'])
         self.gtShape = (self.numGt, gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
-        self.imageShape  = (self.numGt,) + self.innerImageShape
+        self.imageShape  = (self.numImgsTime,) + self.innerImageShape
+        self.dncShape = (self.numDnc,) + self.innerDncShape
         self.numClasses = self.gtShape[3]
 
 
@@ -308,17 +312,32 @@ class kittiVidPvObj(pvObj):
                 "Misc",
                 ]
 
+
         self.lossWeight= [
-                0.32837274,
-                0.78461278,
-                0.96529868,
-                0.9864221 ,
-                0.96730679,
-                0.99826956,
-                0.9866716 ,
-                0.99319898,
-                0.98984676,
+                0.05,
+                0.2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
                 ]
+
+    def getDnc(self):
+        if(self.dncSparse):
+            dncOut = []
+            for i, f in enumerate(self.dncFiles):
+                out = f.read(startIdx, startIdx+1)["values"]
+                dncOut.append(out)
+            dncOut = vstack(dataOut, format="csr")
+        else:
+            dncOut = np.zeros(self.dncShape)
+            for i, f in enumerate(self.dncFiles):
+                dncOut[i] = f.read(0, 1)["values"][0, :, :, :]
+
+        return dncOut
 
 class imageNetVidSupObj(imageObj):
     #TODO fix this object to reduce copied code
@@ -375,7 +394,7 @@ class imageNetVidSupObj(imageObj):
         self.innerImageShape = (64, 128, 3)
         self.inputShape = (self.numInputs,) + self.innerInputShape
         self.gtShape = (self.numGt, gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
-        self.imageShape  = (self.numGt, 64, 128, 3)
+        self.imageShape  = (self.numImgsTime, 64, 128, 3)
 
         self.numClasses = self.gtShape[3]
 

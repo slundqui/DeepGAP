@@ -53,12 +53,15 @@ class SupVid(TFObj):
                 self.h_weight = weight_variable_xavier([4, 16, 32, 3, 3072], "hidden_weight")
                 self.h_bias = bias_variable([3072], "hidden_bias")
                 self.h_hidden= tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
+                #self.training = tf.placeholder("bool", name="training")
+                #(self.h_norm_hidden, self.beta, self.gamma) = standard_batch_norm("hidden", self.h_hidden, 3072, self.training)
+                self.keep_prob = tf.placeholder(tf.float32)
+                self.h_dropout = tf.nn.dropout(self.h_hidden, self.keep_prob)
 
             with tf.name_scope("Pool"):
                 #Pool over spatial dimensions to be 2x2
-                self.inputPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 4, 8, 8, 1], strides=[1, 4, 8, 8, 1], padding="SAME")
-                self.camPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 4, 8
-                    , 8, 1], strides=[1, 4, 1, 1, 1], padding="SAME")
+                self.inputPooled = tf.nn.max_pool3d(self.h_dropout, ksize=[1, 4, 8, 8, 1], strides=[1, 4, 8, 8, 1], padding="SAME")
+                self.camPooled = tf.nn.max_pool3d(self.h_dropout, ksize=[1, 4, 8, 8, 1], strides=[1, 4, 1, 1, 1], padding="SAME")
 
                 self.weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "weight")
                 self.bias = bias_variable([self.numClasses], "bias" )
@@ -107,6 +110,8 @@ class SupVid(TFObj):
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
                             self.h_weight,
+                            #self.beta,
+                            #self.gamma,
                             self.weight,
                         ]
                         )
@@ -143,10 +148,13 @@ class SupVid(TFObj):
         #Conv layer histograms
         tf.histogram_summary('h_conv', self.h_conv, name="conv1_vis")
         tf.histogram_summary('h_hidden', self.h_hidden, name="hidden_vis")
+        tf.histogram_summary('h_dropout', self.h_dropout, name="dropout_hidden_vis")
         tf.histogram_summary('est', self.est, name="est_vis")
         #Weight and bias hists
         tf.histogram_summary('h_weight', self.h_weight, name="weight_vis")
         tf.histogram_summary('h_bias', self.h_bias, name="bias_vis")
+       # tf.histogram_summary('h_beta', self.beta, name="beta_vis")
+       # tf.histogram_summary('h_gamma', self.gamma, name="gamma_vis")
         tf.histogram_summary('weight', self.weight, name="weight_vis")
         tf.histogram_summary('bias', self.bias, name="bias_vis")
 
@@ -164,7 +172,8 @@ class SupVid(TFObj):
             data = dataObj.getData(self.batchSize)
             (gtOutY, gtOutX, gtVals) = sp.find(data[1])
             feedDict = {self.inputImage:data[0],
-                        self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals}
+                        self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
+                        self.keep_prob:.5}
 
             #feedDict = {self.inputImage: data[0], self.gt: data[1]}
             #Run optimizer
@@ -232,9 +241,10 @@ class SupVid(TFObj):
         if(inGt != None):
             (gtOutY, gtOutX, gtVals) = sp.find(inGt)
             feedDict = {self.inputImage:inData,
-                        self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals}
+                        self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
+                        self.keep_prob:1.0}
         else:
-            feedDict ={self.inputImage:inData}
+            feedDict ={self.inputImage:inData, self.keep_prob:1.0}
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):

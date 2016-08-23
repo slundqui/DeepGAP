@@ -47,7 +47,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_imagenet_vid_2x4_mlp/",
+    'runDir':          "/pv_imagenet_vid_2x4_mlp_dropout/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -62,7 +62,7 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4_tpool.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4_mlp_dropout.ckpt",
     #Device to run on
     'device':          '/gpu:1',
     #####ISTA PARAMS######

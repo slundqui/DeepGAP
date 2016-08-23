@@ -3,6 +3,37 @@ import tensorflow as tf
 import pdb
 from scipy import sparse
 
+def standard_batch_norm(l, x, n_out, phase_train, scope='BN'):
+    """
+    Batch normalization on feedforward maps.
+    Args:
+        x:           Vector
+        n_out:       integer, depth of input maps
+        phase_train: boolean tf.Varialbe, true indicates training phase
+        scope:       string, variable scope
+    Return:
+        normed:      batch-normalized maps
+    """
+    with tf.variable_scope(scope+l):
+        #beta = tf.Variable(tf.constant(0.0, shape=[n_out], dtype=tf.float64 ), name='beta', trainable=True, dtype=tf.float64 )
+        #gamma = tf.Variable(tf.constant(1.0, shape=[n_out],dtype=tf.float64 ), name='gamma', trainable=True, dtype=tf.float64 )
+        init_beta = tf.constant(0.0, shape=[n_out], dtype=tf.float32)
+        init_gamma = tf.constant(1.0, shape=[n_out],dtype=tf.float32)
+        beta = tf.get_variable(name='beta'+l, dtype=tf.float64, initializer=init_beta, regularizer=None, trainable=True)
+        gamma = tf.get_variable(name='gamma'+l, dtype=tf.float64, initializer=init_gamma, regularizer=None, trainable=True)
+        batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2], name='moments')
+        ema = tf.train.ExponentialMovingAverage(decay=0.5)
+
+        def mean_var_with_update():
+            ema_apply_op = ema.apply([batch_mean, batch_var])
+            with tf.control_dependencies([ema_apply_op]):
+                return tf.identity(batch_mean), tf.identity(batch_var)
+
+        mean, var = tf.cond(phase_train, mean_var_with_update, lambda: (ema.average(batch_mean), ema.average(batch_var)))
+        normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
+    return (normed, beta, gamma)
+
+
 def smoothL1(inNode):
     absV = tf.abs(inNode)
     LTvalue = 0.5 * tf.square(inNode)

@@ -56,7 +56,7 @@ class MLPVid(TFObj):
                 else:
                     self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
 
-                self.select_gt = self.gt[:, :, :, :, 0:self.numClasses]
+                self.select_gt = tf.squeeze(self.gt[:, :, :, :, 0:self.numClasses], squeeze_dims=[1])
 
                 #self.norm_gt = self.gt/tf.reduce_sum(self.gt, reduction_indices=4, keep_dims=True)
 
@@ -68,7 +68,7 @@ class MLPVid(TFObj):
                 self.timePooled = 10 * tf.reduce_max(self.inputImage, reduction_indices=1)
                 self.inputPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
-                self.conv1_w = tf.Variable(tf.zeros([3, 3, inputShape[3], 3072]), "conv1_w")
+                self.conv1_w = tf.Variable(tf.zeros([1, 1, inputShape[3], 3072]), "conv1_w")
                 self.conv1_b = bias_variable([3072], "conv1_b")
 
                 self.h_res = tf.nn.relu(tf.nn.conv2d(self.inputPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
@@ -77,8 +77,8 @@ class MLPVid(TFObj):
             with tf.name_scope("batchNorm"):
                 #self.training = tf.placeholder("bool", name="training")
                 #(self.h_norm_conv1, self.beta, self.gamma) = standard_batch_norm("conv1", self.h_conv1, 3072, self.training)
-                #self.keep_prob = tf.placeholder(tf.float32)
-                #self.h_dropout = tf.nn.dropout(self.h_conv1, self.keep_prob)
+                self.keep_prob = tf.placeholder(tf.float32)
+                self.h_dropout = tf.nn.dropout(self.h_conv1, self.keep_prob)
                 pass
 
             with tf.name_scope("conv2"):
@@ -87,17 +87,17 @@ class MLPVid(TFObj):
                 #We pad inputPooled to get to gt temporal shape of 7
                 #self.padInput = tf.pad(self.inputImage, [[0, 0], [1, 2], [0, 0], [0, 0], [0, 0]])
                 #Pool over spatial dimensions to be 2x2
-                self.h_conv1_pool= tf.nn.max_pool(self.h_conv1, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
+                self.h_conv1_pool= tf.nn.max_pool(self.h_dropout, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
-                self.camPooled = tf.nn.max_pool(self.h_conv1, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
+                self.camPooled = tf.nn.max_pool(self.h_dropout, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
                 self.conv2_w = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
                 self.conv2_b = bias_variable([self.numClasses], "bias" )
 
-                self.h_conv2 = tf.nn.conv2d(self.h_conv1_pool, self.conv2_w, [1, 1, 1, 1], padding="VALID") + self.conv2_b
+                self.h_conv2 = tf.nn.conv2d(self.h_conv1_pool, self.conv2_w, [1, 1, 1, 1], padding="SAME") + self.conv2_b
 
                 #We evaluate pooling with smaller stride here
-                self.cam = tf.nn.conv2d(self.camPooled, self.conv2_w, [1, 1, 1, 1], padding="VALID") + self.conv2_b
+                self.cam = tf.nn.conv2d(self.camPooled, self.conv2_w, [1, 1, 1, 1], padding="SAME") + self.conv2_b
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
@@ -132,9 +132,9 @@ class MLPVid(TFObj):
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
                 if(self.lossWeight == None):
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=4))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
                 else:
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=4))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):
@@ -183,8 +183,8 @@ class MLPVid(TFObj):
     def getLoadVars(self):
         v = tf.all_variables()
 
-        return [var for var in v if ("weight" in var.name) or ("bias" in var.name)]
-        #return v
+        #return [var for var in v if ("weight" in var.name) or ("bias" in var.name)]
+        return v
 
     #Trains model for numSteps
     #If pre is False, will train entire network
@@ -199,12 +199,12 @@ class MLPVid(TFObj):
                 (gtOutY, gtOutX, gtVals) = sp.find(data[1])
                 feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
                             self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
-                            #self.keep_prob:.5
+                            self.keep_prob:.5
                             }
             else:
                 feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
                         self.gt:data[1],
-                        #self.keep_prob:.5
+                        self.keep_prob:.5
                         }
 
             #feedDict = {self.inputImage: data[0], self.gt: data[1]}
@@ -273,16 +273,16 @@ class MLPVid(TFObj):
                 (gtOutY, gtOutX, gtVals) = sp.find(inGt)
                 feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
                         self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
-                       # self.keep_prob:1.0
+                        self.keep_prob:1.0
                         }
             else:
                 feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
                         self.gt:inGt,
-                       #self.keep_prob:1.0
+                       self.keep_prob:1.0
                        }
         else:
             feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
-                    #self.keep_prob:1.0
+                    self.keep_prob:1.0
                     }
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)

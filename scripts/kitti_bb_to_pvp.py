@@ -37,7 +37,7 @@ windowSize=[
 
 imageBatch = 256
 gtShape = (16, 64)
-outPrefix = "/home/slundquist/mountData/kitti_iou/kitti_iou"
+outPrefix = "/home/slundquist/mountData/kitti_iou/kitti_iou_test"
 
 #Get object from which tensorflow will pull data from
 trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567)

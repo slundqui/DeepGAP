@@ -42,12 +42,11 @@ testFnPrefix = "/shared/imageNet/vid2015_128x64/val_7objects/"
 trainDataObj = imageNetVidPvObj(trainInputs, trainGts, trainFilenames, trainFnPrefix, shuffle=True)
 testDataObj = imageNetVidPvObj(testInputs, testGts, testFilenames, testFnPrefix, shuffle=True)
 
-
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_imagenet_vid_2x4_reweight/",
+    'runDir':          "/pv_imagenet_vid_2x4_tpool/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -61,7 +60,7 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4_reweight.ckpt",
     #Device to run on
     'device':          '/gpu:1',

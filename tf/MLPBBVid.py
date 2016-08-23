@@ -4,16 +4,16 @@ import tensorflow as tf
 from loadVgg import loadWeights
 from utils import *
 import os
-from plot.viewCam import plotDetCam
+from plot.viewBB import plotBB
 from base import TFObj
 import scipy.sparse as sp
 #import matplotlib.pyplot as plt
 
-class SLPVid(TFObj):
+class MLPBBVid(TFObj):
 
     #Sets dictionary of params to member variables
     def loadParams(self, params):
-        super(SLPVid, self).loadParams(params)
+        super(MLPBBVid, self).loadParams(params)
 
         self.beta1 = params['beta1']
         self.beta2 = params['beta2']
@@ -21,7 +21,15 @@ class SLPVid(TFObj):
         self.learningRateBias = params['learningRateBias']
         self.lossWeight = params['lossWeight']
         self.gtShape = params['gtShape']
+        self.imageShape = params['imageShape']
         self.gtSparse = params['gtSparse']
+        self.dncVals = params['dncVals']
+        self.bbWindowSize = params['bbWindowSize']
+        self.iouThresh = params['iouThresh']
+        self.minIouThresh = params['minIouThresh']
+        self.inputScale = params['inputScale']
+        self.gtStrideY = params['gtStrideY']
+        self.gtStrideX = params['gtStrideX']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -42,7 +50,7 @@ class SLPVid(TFObj):
                         validate_indices=False
                         )
 
-                self.inputImage = tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
+                self.inputImage = self.inputScale * tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
 
                 if(self.gtSparse):
                     self.gtIndices = tf.placeholder("int64", [2, None], "gtIndices")
@@ -58,55 +66,89 @@ class SLPVid(TFObj):
                 else:
                     self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
 
-                self.select_gt = tf.squeeze(self.gt[:, :, :, :, 0:self.numClasses], squeeze_dims=[1])
+                #Binarize gt values
+                self.bool_gt = tf.greater_equal(self.gt , self.iouThresh)
+                self.bin_gt = tf.cast(self.bool_gt, "float32")
 
-                #self.norm_gt = self.gt/tf.reduce_sum(self.gt, reduction_indices=4, keep_dims=True)
+                #Distractor should be [minIouThresh, iouThresh)
+                self.bool_dist = tf.logical_and(tf.greater_equal(self.gt, self.minIouThresh), tf.logical_not(self.bool_gt))
+                self.distractor = tf.reduce_max(tf.cast(self.bool_dist, "float32"), reduction_indices=[4], keep_dims=True)
+
+                self.dist_gt = tf.concat(4, [self.distractor, self.bin_gt])
+                self.dnc = tf.expand_dims(tf.constant(self.dncVals, dtype="float32", name="dnc"),0)
+                self.masked_gt = self.dist_gt * self.dnc
+
+                #We downsample gt for a bigger stride
+                targetNy = self.gtShape[1]/self.gtStrideY
+                targetNx = self.gtShape[2]/self.gtStrideX
+
+                stride_gt1 = tf.reshape(self.masked_gt, [self.batchSize, self.gtShape[0], targetNy, self.gtStrideY, self.gtShape[2], self.numClasses])[:, :, :, 0, :, :]
+                self.stride_gt= tf.reshape(stride_gt1, [self.batchSize, self.gtShape[0], targetNy, targetNx, self.gtStrideX, self.numClasses])[:, :, :, :, 0, :]
+
+                #Make a boolean mask for vectors with all 0s
+                self.careMask = tf.cast(tf.reduce_max(self.stride_gt, reduction_indices=[4]), "bool")
+
+            with tf.name_scope("conv"):
+                #Pool over time dimension
+                self.inputPooled = tf.reduce_max(self.inputImage, reduction_indices=1)
+
+                self.conv1_w= weight_variable_xavier([3, 3, inputShape[3], 1024], "conv1_w")
+                self.conv1_b = bias_variable([1024], "conv1_b")
+
+                self.h_conv1 = tf.nn.relu(tf.nn.conv2d(self.inputPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
 
             with tf.name_scope("Pool"):
-                yPool = int(np.ceil(float(inputShape[1])/self.gtShape[1]))
-                xPool = int(np.ceil(float(inputShape[2])/self.gtShape[2]))
-                #We pad inputPooled to get to gt temporal shape of 7
-                #self.padInput = tf.pad(self.inputImage, [[0, 0], [1, 2], [0, 0], [0, 0], [0, 0]])
-                #Pool over spatial dimensions to be 2x2
-                self.inputPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], yPool, xPool, 1], padding="SAME")
+                yStride = int(np.ceil(float(inputShape[1])/targetNy))
+                xStride = int(np.ceil(float(inputShape[2])/targetNx))
 
-                self.camPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], 1, 1, 1], padding="SAME")
+                wyScale = float(inputShape[1])/self.imageShape[1]
+                wxScale = float(inputShape[2])/self.imageShape[2]
 
-                self.weight = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
-                self.bias = bias_variable([self.numClasses], "bias" )
+                pooled = []
+                for w in self.bbWindowSize:
+                    (wy, wx) = w
+                    swy = int(np.ceil(wy*wyScale))
+                    swx = int(np.ceil(wx*wxScale))
 
-                self.r_inputPooled = tf.squeeze(self.inputPooled, squeeze_dims=[1])
-                self.r_camPooled = tf.squeeze(self.camPooled, squeeze_dims=[1])
+                    #TODO do pooling over quadrates here
+                    #self.pad_input = tf.pad(self.inputPooled, [[0, 0], [swy/2, swy/2], [swx/2, swx/2], [0, 0]])
+                    #pdb.set_trace()
+                    #swy_sub = swy/2
+                    #swx_sub = swx/2
 
-                self.h_conv = tf.nn.conv2d(self.r_inputPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
+                    pooled.append(tf.nn.max_pool(self.h_conv1, [1, swy, swx, 1], [1, yStride, xStride, 1], padding="SAME"))
 
-                #We evaluate pooling with smaller stride here
-                self.cam = tf.nn.conv2d(self.r_camPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
+                #Concatenate into batch dimension
+                self.catPooled = tf.concat(0, pooled)
 
-                #Reshape batch and time together
-                #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
+            with tf.name_scope("Conv"):
+                self.weight = weight_variable_xavier([1, 1, 1024, self.numClasses], "weight")
+                self.bias = bias_variable([self.numClasses], "bias")
 
-                self.reshape_cam = tf.transpose(self.cam, [0, 3, 1, 2])
+                self.h_conv = tf.nn.conv2d(self.catPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
 
                 #Get ranking from h_conv
-                self.classRank = tf.reduce_mean(self.reshape_cam, reduction_indices=[2, 3])
+                self.softmax_est = pixelSoftmax(self.h_conv)
+                self.est = tf.reshape(self.softmax_est, [self.batchSize, self.gtShape[0], targetNy, targetNx, self.numClasses])
 
-                self.est = pixelSoftmax(self.h_conv)
-                #self.est = self.h_conv
+                #Remove distractor from est
+                self.classRank = tf.reduce_mean(self.est[:, :, :, :, 1:], reduction_indices=[1, 2, 3])
 
-            with tf.name_scope("Loss"):
-                self.flat_gt = tf.reshape(self.select_gt, [-1, self.numClasses])
-                self.flat_est = tf.reshape(self.est, [-1, self.numClasses])
+            with tf.name_scope("Metric"):
+                self.maskGt = tf.boolean_mask(self.stride_gt, self.careMask)
+                self.maskEst = tf.boolean_mask(self.est, self.careMask)
 
-                gtClass = tf.argmax(self.flat_gt, 1)
-                estClass = tf.argmax(self.flat_est, 1)
+                gtClass = tf.argmax(self.maskGt, 1)
+                estClass = tf.argmax(self.maskEst, 1)
                 correct = tf.equal(gtClass, estClass)
+
                 self.accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
                 self.classF1 = []
                 for c in range(self.numClasses):
                     classGT = tf.equal(gtClass, c)
                     classEst = tf.equal(estClass, c)
+
                     classTP = tf.reduce_sum(tf.cast(tf.logical_and(classGT, classEst), tf.float32))
                     classFP = tf.reduce_sum(tf.cast(tf.logical_and(tf.logical_not(classGT), classEst), tf.float32))
                     classFN = tf.reduce_sum(tf.cast(tf.logical_and(classGT, tf.logical_not(classEst)), tf.float32))
@@ -115,40 +157,62 @@ class SLPVid(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
+                #(self.totAuc, self.updateAuc) = tf.contrib.metrics.streaming_auc(self.maskEst, self.maskGt, num_thresholds=200, curve='PR')
+
+            with tf.name_scope("Loss"):
                 if(self.lossWeight == None):
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.maskGt* tf.log(self.maskEst+self.epsilon), reduction_indices=1))
                 else:
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.maskGt* tf.log(self.maskEst+self.epsilon), reduction_indices=1))
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
                             self.weight,
-                        ]
-                        )
-                self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
-                        var_list=[
+                            self.conv1_w,
                             self.bias,
+                            self.conv1_b,
                         ]
                         )
+                #self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
+                #        var_list=[
+                #        ]
+                #        )
 
-        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=5)
+            with tf.name_scope("NMS"):
+                self.nms_boxes = tf.placeholder("float32", [None, 4], "nms_boxes")
+                self.nms_scores = tf.placeholder("float32", [None], "nms_scores")
+                nbb = tf.shape(self.nms_scores)
+                #Cut by a quarter
+                self.nms_bb_idx = tf.image.non_max_suppression(self.nms_boxes, self.nms_scores, 20)
+                self.nms_bb = tf.gather(self.nms_boxes, self.nms_bb_idx)
+
+
+
+        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=6)
+        self.numCare = tf.reduce_sum(tf.cast(self.careMask, "float32"))
 
         #Summaries
-        tf.scalar_summary('loss', self.loss, name="loss")
-        tf.scalar_summary('accuracy', self.accuracy, name="accuracy")
+        tf.scalar_summary('loss', self.loss, name="loss_vis")
+        tf.scalar_summary('accuracy', self.accuracy, name="accuracy_vis")
         for c in range(self.numClasses):
             className = self.idxToName[c]
             tf.scalar_summary(className+' F1', self.classF1[c])
+        tf.scalar_summary('numCare', self.numCare, name="numCare_vis")
 
         tf.histogram_summary('input', self.inputImage, name="image_vis")
-        tf.histogram_summary('inputPooled', self.inputPooled, name="image_vis")
-        tf.histogram_summary('gt', self.select_gt, name="gt_vis")
+        tf.histogram_summary('inputPooled', self.inputPooled, name="imagePooled_vis")
+        tf.histogram_summary('h_conv1', self.h_conv1, name="h_conv1_vis")
+        tf.histogram_summary('catPooled', self.catPooled, name="catPooled_vis")
+        tf.histogram_summary('gt', self.gt, name="gt_vis")
+        tf.histogram_summary('stride_gt', self.stride_gt, name="stride_gt_vis")
         #Conv layer histograms
         tf.histogram_summary('h_conv', self.h_conv, name="conv1_vis")
         tf.histogram_summary('est', self.est, name="est_vis")
         #Weight and bias hists
+        tf.histogram_summary('conv1_w', self.conv1_w, name="conv1_w_vis")
+        tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
         tf.histogram_summary('weight', self.weight, name="weight_vis")
         tf.histogram_summary('bias', self.bias, name="bias_vis")
 
@@ -177,7 +241,7 @@ class SLPVid(TFObj):
             #feedDict = {self.inputImage: data[0], self.gt: data[1]}
             #Run optimizer
             self.sess.run(self.optimizerAll, feed_dict=feedDict)
-            self.sess.run(self.optimizerBias, feed_dict=feedDict)
+            #self.sess.run(self.optimizerBias, feed_dict=feedDict)
             if(i%self.writeStep == 0):
                 summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
                 self.train_writer.add_summary(summary, self.timestep)
@@ -189,29 +253,19 @@ class SLPVid(TFObj):
             print("Model saved in file: %s" % save_path)
         if(plot):
             filename = self.plotDir + "train_" + str(self.timestep)
-            gtShape = dataObj.gtShape
-            if(self.gtSparse):
-                gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
-            else:
-                gt = data[1]
-            self.evalAndPlotCam(feedDict, data, gt, filename)
 
-    def evalAndPlotCam(self, feedDict, data, gt, prefix):
+            self.evalAndPlotBB(feedDict, data[2], filename)
+
+    def evalAndPlotBB(self, feedDict, img, prefix):
         print "Plotting"
 
-        #We need feed_dict here
-        cam = self.sess.run(self.reshape_cam, feed_dict=feedDict)
+        np_est = self.sess.run(self.est, feed_dict=feedDict)
+        np_gt = self.sess.run(self.stride_gt, feed_dict=feedDict)
 
-        img = data[2]
-        camIdxs = self.sess.run(self.eval_idx, feed_dict=feedDict)
-        camVals = self.sess.run(self.eval_vals, feed_dict=feedDict)
-        #We conlidate the time and batch dim into 1
-        (batch, imgT, imgY, imgX, imgF) = img.shape
-        (batch, gtT, gtY, gtX, gtF) = gt.shape
-        reshape_img = np.reshape(img, [batch*imgT, imgY, imgX, imgF])
-        reshape_gt = np.reshape(gt, [batch*gtT, gtY, gtX, gtF])
+        classRankIdxs = self.sess.run(self.eval_idx, feed_dict=feedDict)
+        classRankVals = self.sess.run(self.eval_vals, feed_dict=feedDict)
 
-        plotDetCam(prefix, reshape_img, reshape_gt, cam, camIdxs, camVals, self.idxToName, distIdx=0)
+        plotBB(prefix, img, np_gt, np_est, classRankIdxs, classRankVals, self.idxToName, self.bbWindowSize, self.sess, (self.nms_bb, self.nms_boxes, self.nms_scores))
 
     def runModel(self, trainDataObj, testDataObj=None):
         for i in range(self.outerSteps):
@@ -252,12 +306,7 @@ class SLPVid(TFObj):
             self.test_writer.add_summary(summary, self.timestep)
         if(plot):
             filename = self.plotDir + "test_" + str(self.timestep)
-            if(self.gtSparse):
-                gt = np.reshape(inGt.toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
-            else:
-                gt = inGt
-            data = (inData, inGt, inImg)
-            self.evalAndPlotCam(feedDict, data, gt, filename)
+            self.evalAndPlotBB(feedDict, inImg, filename)
 
         return outVals
 
