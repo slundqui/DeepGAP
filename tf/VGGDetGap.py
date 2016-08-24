@@ -111,6 +111,7 @@ class VGGDetGap(TFObj):
                 self.reshape_cam = tf.reshape(self.flat_cam, [self.batchSize, self.h_conv5_shape[1], self.h_conv5_shape[2], -1])
                 self.softmax_cam = pixelSoftmax(self.reshape_cam)
                 self.vis_cam = tf.transpose(self.softmax_cam, [0, 3, 1, 2])
+                self.classRank = tf.reduce_mean(self.vis_cam, reduction_indices=[2, 3])
 
             with tf.name_scope("Loss"):
                 #Define loss
@@ -135,7 +136,9 @@ class VGGDetGap(TFObj):
                 self.accuracy = tf.reduce_mean(tf.cast(self.correct, tf.float32))
 
         #Cannot be on GPU
-        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.est, k=5)
+        #Remove distractor class
+        rankNoDist = self.classRank[:, :self.numClasses-1]
+        (self.eval_vals, self.eval_idx) = tf.nn.top_k(rankNoDist, k=5)
 
         #Summaries
         tf.scalar_summary('loss', self.loss, name="lossSum")
@@ -249,7 +252,8 @@ class VGGDetGap(TFObj):
         else:
             feedDict = {self.inputImage: inData}
 
-        outVals = self.vis_cam.eval(feed_dict=feedDict, session=self.sess)
+        outVals = self.eval_vals.eval(feed_dict=feedDict, session=self.sess)
+        outIdx = self.eval_idx.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)
@@ -257,6 +261,57 @@ class VGGDetGap(TFObj):
         if(plot):
             filename = self.plotDir + "test_" + str(self.timestep)
             self.evalAndPlotCam(feedDict, filename)
+        return (outVals, outIdx)
 
-        return outVals
+    #Evaluates inData, but in batchSize batches for memory efficiency
+    #If an inGt is provided, will calculate summary as test set
+    def evalModelBatch(self, inData, inGt=None):
+        (numData, ny, nx, nf) = inData.shape
+        if(inGt != None):
+            (numGt, drop) = inGt.shape
+            assert(numData == numGt)
+
+        #Split up numData into batchSize and evaluate est data
+        tfInVals = np.zeros((self.batchSize, ny, nx, nf))
+
+        outVals = np.zeros((numData, 5))
+        outIdx = np.zeros((numData, 5))
+
+        #Ceil of numData/batchSize
+        numIt = int(numData/self.batchSize) + 1
+
+        #Only write summary on first it
+
+        startOffset = 0
+        for it in range(numIt):
+            print it, " out of ", numIt
+            #Calculate indices
+            startDataIdx = startOffset
+            endDataIdx = startOffset + self.batchSize
+            startTfValIdx = 0
+            endTfValIdx = self.batchSize
+
+            #If out of bounds
+            if(endDataIdx >= numData):
+                #Calculate offset
+                offset = endDataIdx - numData
+                #Set endDataIdx to max value
+                endDataIdx = numData
+                #Set endTfValIdx to less than max value
+                endTfValIdx -= offset
+
+            tfInVals[startTfValIdx:endTfValIdx, :, :, :] = inData[startDataIdx:endDataIdx, :, :, :]
+
+            (oVal, oIdx) = self.evalModel(tfInVals, inGt, plot=False)
+            outVals[startDataIdx:endDataIdx, :] = oVal
+            outIdx[startDataIdx:endDataIdx, :] = oIdx
+
+            if(inGt != None and it == 0):
+                tfInGt = inGt[startDataIdx:endDataIdx, :]
+                summary = self.sess.run(self.mergedSummary, feed_dict={self.inputImage: tfInVals, self.gt: tfInGt})
+                self.test_writer.add_summary(summary, self.timestep)
+
+            startOffset += self.batchSize
+        #Return output data
+        return (outVals, outIdx)
 

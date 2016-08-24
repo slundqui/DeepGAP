@@ -16,16 +16,17 @@ inImageList = sys.argv[1]
 #trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
 #testImageList = "/home/slundquist/mountData/datasets/imagenet/val_cls.txt"
 
-clsMeta = "/home/sheng/mountData/DeepGAP/saved/meta_det.mat"
+clsMeta = "/shared/imageNet/devkit/data/meta_det.mat"
+#clsMeta = "/home/slundquist/mountData/DeepGAP/saved/meta_det.mat"
 
 #Get object from which tensorflow will pull data from
 evalDataObj = evalObj(inImageList, clsMeta, resizeMethod="crop", normStd=False)
 
 params = {
     #Base output directory
-    'outDir':          "/home/sheng/mountData/DeepGAP/",
+    'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/imagenet_eval/",
+    'runDir':          "/demo/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -40,11 +41,12 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/sheng/mountData/DeepGAP/saved/imagenet_det.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
     #Input vgg file for preloaded weights
-    'vggFile':         "/home/sheng/mountData/DeepGAP/saved/imagenet-vgg-verydeep-16.mat",
+    #'vggFile':         "/home/slundquist/mountData/DeepGAP/saved/imagenet-vgg-verydeep-16.mat",
+    'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
-    'device':          '/gpu:0',
+    'device':          '/cpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      10000000, #1000000,
@@ -67,7 +69,19 @@ params = {
 tfObj = VGGDetGap(params, evalDataObj.inputShape)
 
 print "Done init"
-tfObj.evalModel(evalDataObj.getData(1), plot=True)
+(outVals, outIdx) = tfObj.evalModelBatch(evalDataObj.getData(evalDataObj.numImages))
+filenames = evalDataObj.imgFiles
+
+outFile = params["outDir"] + params["runDir"] + "output.txt"
+f = open(outFile, 'w')
+
+
+for filename, val, idx in zip(filenames, outVals.tolist(), outIdx.tolist()):
+    outStr = filename + ","
+    for v, i in zip(val, idx):
+        outStr += "[\"" + evalDataObj.idxToName[int(i)] + "\"]," + str(v) +","
+    outStr += "\n"
+    f.write(outStr)
 
 print "Done run"
 
