@@ -12,9 +12,10 @@ def bb_mask(windowSize, gtShape, imageShape, outPrefix):
     strideY = imageShape[0]/gtShape[0]
     strideX = imageShape[1]/gtShape[1]
 
-    maskShape = (gtShape[0], gtShape[1], 1)
+    maskShape = (gtShape[0], gtShape[1], len(windowSize))
 
-    for window in windowSize:
+    mask = np.zeros((1,) + maskShape)
+    for i, window in enumerate(windowSize):
         #Convert windowSize from pixel space to gt space
         nyp = int(round(float(window[0])/strideY))
         nxp = int(round(float(window[1])/strideX))
@@ -23,11 +24,9 @@ def bb_mask(windowSize, gtShape, imageShape, outPrefix):
         yMargin = nyp/2
         xMargin = nxp/2
 
-        mask = np.zeros((1,) + maskShape)
         #Valid locations are in the center
-        mask[0, yMargin:-yMargin, xMargin:-xMargin, 0] = 1
+        mask[0, yMargin:-yMargin, xMargin:-xMargin, i] = 1
 
-        outFn = outPrefix + str(window[0])+"x"+str(window[1])+"_mask.pvp"
-
-        data = {"values":mask, "time":[0]}
-        writepvpfile(outFn, data)
+    outFn = outPrefix + "_mask.pvp"
+    data = {"values":mask, "time":[0]}
+    writepvpfile(outFn, data)

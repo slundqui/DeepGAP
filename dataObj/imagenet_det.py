@@ -2,18 +2,66 @@ from dataObj.image import imageNetDetObj
 from os.path import isfile
 import pdb
 import xml.etree.ElementTree as ET
+from pvtools import *
+import numpy as np
+import scipy.sparse as sp
 
 class imageNetDetPVGT(imageNetDetObj):
     numClasses = 200
-    def __init__(self, imgList, imgPrefix, gtPrefix, metaFilename, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True):
+    def __init__(self, imgList, imgPrefix, gtObj, gtLabel, metaFilename, ext=".JPEG", resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True):
 
         #Call superclass constructor
-        super(imageNetDetBBObj, self).__init__(imgList, imgPrefix, gtPrefix, metaFilename, ext, resizeMethod, normStd, shuffle, skip, seed, augument=False , getGT=getGT)
+        super(imageNetDetPVGT, self).__init__(imgList, imgPrefix, None, metaFilename, ext, resizeMethod, normStd, shuffle, skip, seed, augument=False , getGT=getGT)
 
         #Class 200 is the distractor class
         self.gtShape = None
-        self.inputShape = (256, 256, 3)
+        self.inputShape = (512, 512, 10, 3)
         self.flip=False
+
+        self.gtObjPvp = pvpOpen(gtObj, 'r')
+        self.gtLabelPvp = pvpOpen(gtLabel, 'r')
+
+        outObjHeader = self.gtObjPvp["header"]
+        outLabelHeader = self.gtLabelPvp["header"]
+
+        gtShape = (16, 16, 201)
+
+    #Grabs the next image in the list. Will shuffle images when rewinding
+    def nextImage(self, onlyGt = False):
+        startIdx = self.shuffleIdx[self.imgIdx]
+        imgFile = self.imgFiles[startIdx]
+        outData = self.readImage(imgFile, onlyGt)
+        outObj = self.gtObjPvp.read(startIdx, startIdx+1)
+        outLabel = self.gtLabelShape.read(startIdx, startIdx+1)
+
+        #Update imgIdx
+        self.imgIdx = self.imgIdx + self.skip
+
+        if(self.imgIdx >= self.numImages):
+            print "Rewinding"
+            self.imgIdx = 0
+            if(self.doShuffle):
+                random.shuffle(self.shuffleIdx)
+        return (outData, outObj, outLabel)
+
+    def getData(self, numExample, onlyGt = False):
+        if(onlyGt):
+            outData = None
+        else:
+            outData = np.zeros((numExample,) + self.inputShape)
+        if(self.getGT):
+            outObj = []
+            outLabel = []
+
+        for i in range(numExample):
+            data = self.nextImage(onlyGt)
+            outData[i] = data[0]
+            outObj.append(data[1])
+            outLabel.append(data[2])
+        outObj = sp.vstack(outObj)
+        outLabel = sp.vstack(outLabel)
+
+        return (outData, outObj, outLabel)
 
 class imageNetDetBBObj(imageNetDetObj):
     numClasses = 200

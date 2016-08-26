@@ -2,14 +2,28 @@ import matplotlib
 matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
 from dataObj.pv_image import kittiVidPvObj
-from tf.SLPVid import SLPVid
+from tf.SupVidMLP_kitti import SupVidMLP_kitti
 import numpy as np
 import pdb
 
+#import os
+#import signal
+#def sig_handler(signum, frame):
+#    print "segfault"
+#    pdb.set_trace()
+#signal.signal(signal.SIGSEGV, sig_handler)
+
+
+
 #Paths to list of filenames
+#Since we reshape from 6 to 3x2 (3 time, 2 stereo), left/right spin fastest
 trainInputs = [
-            "/home/slundquist/mountData/kitti_pv/objdet_train2/S1_0.pvp",
-            "/home/slundquist/mountData/kitti_pv/objdet_train2/S1_1.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft0.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameRight0.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft1.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameRight1.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft2.pvp",
+            "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameRight2.pvp",
             ]
 
 trainGts = [
@@ -18,6 +32,7 @@ trainGts = [
 trainFilenames = [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft2.pvp",
         ]
+
 dncFilenames= [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
@@ -43,7 +58,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_kitti_vid_2x2/",
+    'runDir':          "/sup_kitti_vid_4x8_mlp/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -58,12 +73,12 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            False,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8.ckpt",
     #Device to run on
-    'device':          '/gpu:0',
+    'device':          '/cpu:0',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      10000000, #1000000,
+    'outerSteps':      1, #1000000,
     'innerSteps':      1, #300,
     #Batch size
     'batchSize':       16,
@@ -84,7 +99,7 @@ params = {
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = SLPVid(params, trainDataObj.inputShape)
+tfObj = SupVidMLP_kitti(params, trainDataObj.inputShape)
 
 print "Done init"
 tfObj.runModel(trainDataObj, testDataObj = testDataObj)

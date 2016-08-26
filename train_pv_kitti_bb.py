@@ -44,11 +44,22 @@ dncFilenames= [
             "/home/slundquist/mountData/kitti_iou/kitti_iou64x128_mask.pvp",
         ]
 
-#trainFnPrefix = "/shared/KITTI/objdet/training/"
+trainRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_train_list.txt"
+testRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_test_list.txt"
+
+trainf = open(trainRangeFn, 'r')
+trainLines = trainf.readlines()
+trainf.close()
+trainRange = [int(l) for l in trainLines]
+
+testf = open(testRangeFn, 'r')
+testLines = testf.readlines()
+testf.close()
+testRange = [int(l) for l in testLines]
 
 #Get object from which tensorflow will pull data from
-trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, startIdx = 0, stopIdx = 6000)
-testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, startIdx=6000, stopIdx=-1)
+trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange)
+testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=testRange)
 
 bbWindowSize=[
             (8, 8)  , (16, 8) , (8, 16) ,
@@ -98,7 +109,7 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_bb.ckpt",
     #Device to run on
     'device':          '/gpu:0',

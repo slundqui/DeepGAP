@@ -22,6 +22,7 @@ class SLPVid(TFObj):
         self.lossWeight = params['lossWeight']
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
+        self.inputScale = params['inputScale']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -42,7 +43,7 @@ class SLPVid(TFObj):
                         validate_indices=False
                         )
 
-                self.inputImage = tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
+                self.inputImage = tf.inputScale * tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
 
                 if(self.gtSparse):
                     self.gtIndices = tf.placeholder("int64", [2, None], "gtIndices")
@@ -68,9 +69,9 @@ class SLPVid(TFObj):
                 #We pad inputPooled to get to gt temporal shape of 7
                 #self.padInput = tf.pad(self.inputImage, [[0, 0], [1, 2], [0, 0], [0, 0], [0, 0]])
                 #Pool over spatial dimensions to be 2x2
-                self.inputPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], yPool, xPool, 1], padding="SAME")
+                self.inputPooled = tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], yPool, xPool, 1], padding="SAME")
 
-                self.camPooled = 10 * tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], 1, 1, 1], padding="SAME")
+                self.camPooled = tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], 1, 1, 1], padding="SAME")
 
                 self.weight = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
                 self.bias = bias_variable([self.numClasses], "bias" )

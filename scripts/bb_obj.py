@@ -5,7 +5,7 @@ import pdb
 
 import tensorflow as tf
 
-def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
+def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIouThresh, device="/gpu:0"):
     dataShape = dataObj.inputShape
     numClasses = dataObj.numClasses
 
@@ -22,7 +22,7 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
     #Placeholder for ground truth array
     tf_inGt = tf.placeholder("float", shape=[None, dataObj.inputShape[0], dataObj.inputShape[1], 1], name="inGt")
 
-    with tf.device('/gpu:1'):
+    with tf.device(device):
         tf_area_bb = tf.squeeze(tf.reduce_sum(tf_inGt, reduction_indices=[1, 2, 3], keep_dims=True), squeeze_dims=[3])
 
         #We avg pool per window size on each gt
@@ -94,7 +94,7 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
                 imgIdx = it*imageBatch + i
                 time.append(imgIdx)
                 bbIOU = np_iou_pack[:, windowIdx:windowIdx+numBB, :, :]
-                outBBObj = np.zeros((numWindows, gtY, gtX))
+                outBBObj = np.zeros((numWindows, gtY, gtX, 2))
                 outBBLabel = np.zeros((numWindows, gtY, gtX, 5))
                 for bbIdx in range(numBB):
                     bbWindowIOU = bbIOU[:, bbIdx, :, :]
@@ -102,17 +102,17 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
                     (w, y, x) = np.unravel_index(np.argmax(bbWindowIOU), bbWindowIOU.shape)
 
                     #This marks the IOU to find the max
-                    outBBObj[w, y, x] = bbWindowIOU[w, y, x]
+                    outBBObj[w, y, x, 0] = bbWindowIOU[w, y, x]
                     outBBLabel[w, y, x, :] = allBB[windowIdx]
 
                     #We assign an anchor that has IOU >= iouThresh
                     #We take the max IOU as the new iou
                     iouHit = np.nonzero(bbWindowIOU >= iouThresh)
                     newIOU = bbWindowIOU[iouHit]
-                    oldIOU = outBBObj[iouHit]
+                    oldIOU = outBBObj[iouHit, 0]
                     replaceHits = np.array(newIOU > oldIOU)
                     if(len(replaceHits) > 0):
-                        outBBObj[iouHit] = np.where(replaceHits, newIOU, oldIOU)
+                        outBBObj[iouHit, 0] = np.where(replaceHits, newIOU, oldIOU)
 
                         newLabels = np.array(allBB[windowIdx])
                         oldLabels = outBBLabel[iouHit]
@@ -120,15 +120,25 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
                         outBBLabel[iouHit] = out
                     windowIdx += 1
 
+                #Calculate distractor class, which is anchors with <= minIouThresh for all bb
+                if(numBB != 0):
+                    maxIOU = np.max(bbIOU, axis=1)
+                else:
+                    #No bb, all zeros
+                    maxIOU = np.zeros((numWindows, gtY, gtX))
+                iouMiss = np.nonzero(maxIOU <= minIouThresh)
+                outBBObj[iouMiss[0], iouMiss[1], iouMiss[2], 1] = 1
+
                 #Set outBBObj to be binary
                 nzIOUIdx = np.nonzero(outBBObj)
                 outBBObj[nzIOUIdx] = 1
+
                 #Permute windows dimension to last dimension
-                outBBObj = np.transpose(outBBObj, [1, 2, 0])
+                outBBObj = np.transpose(outBBObj, [1, 2, 0, 3])
                 outBBLabel = np.transpose(outBBLabel, [1, 2, 0, 3])
 
                 #Make sparse matrix and store in outer array
-                flat_outBBObj = np.reshape(outBBObj, (1, numWindows*gtY*gtX))
+                flat_outBBObj = np.reshape(outBBObj, (1, numWindows*gtY*gtX*2))
                 flat_outBBLabel = np.reshape(outBBLabel, (1, numWindows*gtY*gtX*5))
                 outBBObjList.append(sp.csr_matrix(flat_outBBObj))
                 outBBLabelList.append(sp.csr_matrix(flat_outBBLabel))
@@ -140,7 +150,7 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh):
             sparseBBLabelList = sp.vstack(outBBLabelList)
 
             objData = {"values": sparseBBObjList, "time":time}
-            pvpBBObjFile.write(objData, shape=(gtShape[0], gtShape[1], numWindows))
+            pvpBBObjFile.write(objData, shape=(gtShape[0], gtShape[1], numWindows*2))
 
             labelData = {"values": sparseBBLabelList, "time":time}
             pvpBBLabelFile.write(labelData, shape=(gtShape[0], gtShape[1], numWindows*5))

@@ -153,55 +153,55 @@ class TFObj(object):
 
         return outVals
 
-    #Evaluates inData, but in miniBatchSize batches for memory efficiency
-    #If an inGt is provided, will calculate summary as test set
-    def evalModelBatch(self, inData, inGt=None):
-        (numData, ny, nx, nf) = inData.shape
-        if(inGt != None):
-            (numGt, drop) = inGt.shape
-            assert(numData == numGt)
+    ##Evaluates inData, but in batchSize batches for memory efficiency
+    ##If an inGt is provided, will calculate summary as test set
+    #def evalModelBatch(self, inData, inGt=None):
+    #    (numData, ny, nx, nf) = inData.shape
+    #    if(inGt != None):
+    #        (numGt, drop) = inGt.shape
+    #        assert(numData == numGt)
 
-        #Split up numData into miniBatchSize and evaluate est data
-        tfInVals = np.zeros((self.batchSize, ny, nx, nf))
-        outData = np.zeros((numData, 1))
+    #    #Split up numData into batchSize and evaluate est data
+    #    tfInVals = np.zeros((self.batchSize, ny, nx, nf))
+    #    outData = np.zeros((numData, 1))
 
-        #Ceil of numData/batchSize
-        numIt = int(numData/self.batchSize) + 1
+    #    #Ceil of numData/batchSize
+    #    numIt = int(numData/self.batchSize) + 1
 
-        #Only write summary on first it
+    #    #Only write summary on first it
 
-        startOffset = 0
-        for it in range(numIt):
-            print it, " out of ", numIt
-            #Calculate indices
-            startDataIdx = startOffset
-            endDataIdx = startOffset + miniBatchSize
-            startTfValIdx = 0
-            endTfValIdx = miniBatchSize
+    #    startOffset = 0
+    #    for it in range(numIt):
+    #        print it, " out of ", numIt
+    #        #Calculate indices
+    #        startDataIdx = startOffset
+    #        endDataIdx = startOffset + self.batchSize
+    #        startTfValIdx = 0
+    #        endTfValIdx = self.batchSize
 
-            #If out of bounds
-            if(endDataIdx >= numData):
-                #Calculate offset
-                offset = endDataIdx - numData
-                #Set endDataIdx to max value
-                endDataIdx = numData
-                #Set endTfValIdx to less than max value
-                endTfValIdx -= offset
+    #        #If out of bounds
+    #        if(endDataIdx >= numData):
+    #            #Calculate offset
+    #            offset = endDataIdx - numData
+    #            #Set endDataIdx to max value
+    #            endDataIdx = numData
+    #            #Set endTfValIdx to less than max value
+    #            endTfValIdx -= offset
 
-            tfInVals[startTfValIdx:endTfValIdx, :, :, :] = inData[startDataIdx:endDataIdx, :, :, :]
-            feedDict = {self.inputImage: tfInVals}
-            tfOutVals = self.est.eval(feed_dict=feedDict, session=self.sess)
-            outData[startDataIdx:endDataIdx, :] = tfOutVals[startTfValIdx:endTfValIdx, :]
+    #        tfInVals[startTfValIdx:endTfValIdx, :, :, :] = inData[startDataIdx:endDataIdx, :, :, :]
+    #        feedDict = {self.inputImage: tfInVals}
+    #        tfOutVals = self.est.eval(feed_dict=feedDict, session=self.sess)
+    #        outData[startDataIdx:endDataIdx, :] = tfOutVals[startTfValIdx:endTfValIdx, :]
 
-            if(inGt != None and it == 0):
-                tfInGt = inGt[startDataIdx:endDataIdx, :]
-                summary = self.sess.run(self.mergedSummary, feed_dict={self.inputImage: tfInVals, self.gt: tfInGt})
-                self.test_writer.add_summary(summary, self.timestep)
+    #        if(inGt != None and it == 0):
+    #            tfInGt = inGt[startDataIdx:endDataIdx, :]
+    #            summary = self.sess.run(self.mergedSummary, feed_dict={self.inputImage: tfInVals, self.gt: tfInGt})
+    #            self.test_writer.add_summary(summary, self.timestep)
 
-            startOffset += miniBatchSize
+    #        startOffset += self.batchSize
 
-        #Return output data
-        return outData
+    #    #Return output data
+    #    return outData
 
 
     #Loads a tf checkpoint

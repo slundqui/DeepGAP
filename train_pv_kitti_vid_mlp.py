@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
 from dataObj.pv_image import kittiVidPvObj
-from tf.SLPVid import SLPVid
+from tf.MLPVid import MLPVid
 import numpy as np
 import pdb
 
@@ -21,6 +21,8 @@ trainFilenames = [
 dncFilenames= [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
+
+#trainFnPrefix = "/shared/KITTI/objdet/training/"
 
 trainRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_train_list.txt"
 testRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_test_list.txt"
@@ -43,7 +45,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_kitti_vid_2x2/",
+    'runDir':          "/pv_kitti_vid_4x8_mlp/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -60,11 +62,11 @@ params = {
     'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4.ckpt",
     #Device to run on
-    'device':          '/gpu:0',
+    'device':          '/cpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      10000000, #1000000,
-    'innerSteps':      1, #300,
+    'innerSteps':      100, #300,
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
@@ -79,12 +81,13 @@ params = {
     'preTrain': False,
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
-    'gtSparse': False
+    'gtSparse': False,
+    'inputScale': 100,
 }
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = SLPVid(params, trainDataObj.inputShape)
+tfObj = MLPVid(params, trainDataObj.inputShape)
 
 print "Done init"
 tfObj.runModel(trainDataObj, testDataObj = testDataObj)

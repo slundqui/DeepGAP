@@ -7,7 +7,7 @@ import pdb
 import numpy as np
 
 class pvObj(imageObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, startIdx=0, stopIdx=-1):
+    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, rangeIdx=None):
 
         self.resizeMethodParam=resizeMethod
         self.normStd = False
@@ -60,14 +60,12 @@ class pvObj(imageObj):
         numGtFrames = np.min([f.header["nbands"] for f in self.gtFiles])
         self.numImages = np.min([numInputFrames, numGtFrames])
 
-        if(stopIdx == -1):
-            stopIdx = self.numImages
-        if(stopIdx >= self.numImages):
-            stopIdx = self.numImages
+        if(rangeIdx == None):
+            self.shuffleIdx = range(self.numImages)
+        else:
+            self.shuffleIdx = rangeIdx
 
-        self.numData = stopIdx - startIdx
-
-        self.shuffleIdx = range(startIdx, stopIdx)
+        self.numData = len(self.shuffleIdx)
         self.doShuffle = shuffle
         self.skip = skip
         self.getGT = getGT
@@ -181,8 +179,8 @@ class pvObj(imageObj):
 
 
 class imageNetVidPvObj(pvObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, startIdx = 0, stopIdx=-1):
-        super(imageNetVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, startIdx, stopIdx)
+    def __init__(self, trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, rangeIdx=None):
+        super(imageNetVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, rangeIdx)
 
         inHeader = self.inputFiles[0].header
         gtHeader =  self.gtFiles[0].header
@@ -264,8 +262,8 @@ class imageNetVidPvObj(pvObj):
 
 
 class kittiVidPvObj(pvObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, dncFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, startIdx = 0, stopIdx=-1):
-        super(kittiVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, startIdx, stopIdx)
+    def __init__(self, trainInputs, trainGts, trainFilenames, dncFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, rangeIdx=None):
+        super(kittiVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, rangeIdx)
 
         inHeader = self.inputFiles[0].header
         gtHeader =  self.gtFiles[0].header
@@ -314,16 +312,28 @@ class kittiVidPvObj(pvObj):
 
 
         self.lossWeight= [
-                0.05,
-                0.2,
-                2,
-                2,
-                2,
-                2,
-                2,
-                2,
-                2,
+                0.32837274,
+                0.78461278,
+                0.96529868,
+                0.9864221 ,
+                0.96730679,
+                0.99826956,
+                0.9866716 ,
+                0.99319898,
+                0.98984676,
                 ]
+
+        #self.lossWeight= [
+        #        0.05,
+        #        0.2,
+        #        2,
+        #        2,
+        #        2,
+        #        2,
+        #        2,
+        #        2,
+        #        2,
+        #        ]
 
     def getDnc(self):
         if(self.dncSparse):

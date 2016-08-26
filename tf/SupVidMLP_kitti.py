@@ -5,15 +5,16 @@ from loadVgg import loadWeights
 from utils import *
 import os
 from plot.viewCam import plotDetCam
+from plot.plotWeights import plot_weights
 from base import TFObj
 import scipy.sparse as sp
 #import matplotlib.pyplot as plt
 
-class MLPVid(TFObj):
+class SupVidMLP_kitti(TFObj):
 
     #Sets dictionary of params to member variables
     def loadParams(self, params):
-        super(MLPVid, self).loadParams(params)
+        super(SupVidMLP_kitti, self).loadParams(params)
 
         self.beta1 = params['beta1']
         self.beta2 = params['beta2']
@@ -22,7 +23,6 @@ class MLPVid(TFObj):
         self.lossWeight = params['lossWeight']
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
-        self.inputScale = params['inputScale']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -32,17 +32,15 @@ class MLPVid(TFObj):
                 #self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]], "inputImage")
                 #self.gt = node_variable([self.batchSize, 1, 8, 16, self.numClasses], "gt")
 
-                #We represent inputImage and gt as sparse matrices, with indices/values
-                self.dataIndices = tf.placeholder("int64", [2, None], "dataIndices")
-                self.dataValues = node_variable([None], "dataValues")
-
-                self.pre_inputImage = tf.sparse_tensor_to_dense(tf.SparseTensor(
-                        tf.transpose(self.dataIndices, [1, 0]),
-                        self.dataValues,
-                        [self.batchSize*inputShape[0], inputShape[1]*inputShape[2]*inputShape[3]]
-                        ))
-
-                self.inputImage = self.inputScale * tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
+                self.inputImage = node_variable((self.batchSize,)+inputShape, "inputImage")
+                #We split the time dimension to stereo and concatenate with feature dim
+                self.reshapeImage = tf.reshape(self.inputImage,
+                        [self.batchSize, 3, 2, inputShape[1], inputShape[2], inputShape[3]])
+                self.permuteImage = tf.transpose(self.reshapeImage, [0, 1, 3, 4, 5, 2])
+                self.stereoImage = tf.reshape(self.permuteImage,
+                        [self.batchSize, 3, inputShape[1], inputShape[2], inputShape[3]*2])
+                self.padInput = tf.pad(self.stereoImage, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
+                #Reshape time dimension to feature dimension
 
                 if(self.gtSparse):
                     self.gtIndices = tf.placeholder("int64", [2, None], "gtIndices")
@@ -51,8 +49,9 @@ class MLPVid(TFObj):
                     self.pre_gt = tf.sparse_tensor_to_dense(tf.SparseTensor(
                             tf.transpose(self.gtIndices, [1, 0]),
                             self.gtValues,
-                            [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.gtShape[3]]
-                            ))
+                            [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.gtShape[3]]),
+                            validate_indices=False
+                            )
                     self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
                 else:
                     self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
@@ -61,36 +60,40 @@ class MLPVid(TFObj):
 
                 #self.norm_gt = self.gt/tf.reduce_sum(self.gt, reduction_indices=4, keep_dims=True)
 
+            with tf.name_scope("Hidden"):
+                self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
+                self.h_bias = bias_variable([3072], "hidden_bias")
+                self.h_hidden= tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
+                #self.training = tf.placeholder("bool", name="training")
+                #(self.h_norm_hidden, self.beta, self.gamma) = standard_batch_norm("hidden", self.h_hidden, 3072, self.training)
+
+
             with tf.name_scope("conv1"):
                 yPool = 2
                 xPool = 2
+                self.timePooled = tf.reduce_max(self.h_hidden, reduction_indices=1)
+                self.hiddenPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
-                #Pool over time dimension
-                self.timePooled = tf.reduce_max(self.inputImage, reduction_indices=1)
-                self.inputPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
-
-                self.conv1_w = tf.Variable(tf.zeros([1, 1, inputShape[3], 3072]), "conv1_w")
+                self.conv1_w = tf.Variable(tf.zeros([1, 1, 3072, 3072]), "conv1_w")
                 self.conv1_b = bias_variable([3072], "conv1_b")
 
-                self.h_res = tf.nn.relu(tf.nn.conv2d(self.inputPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
-                self.h_conv1 = tf.nn.relu(self.inputPooled + self.h_res)
+                self.h_res = tf.nn.relu(tf.nn.conv2d(self.hiddenPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
+                self.h_conv1 = tf.nn.relu(self.hiddenPooled + self.h_res)
 
             with tf.name_scope("reg"):
                 self.keep_prob = tf.placeholder(tf.float32)
                 self.h_dropout = tf.nn.dropout(self.h_conv1, self.keep_prob)
-                pass
 
             with tf.name_scope("conv2"):
-                yPool = int(np.ceil(float(inputShape[1])/(self.gtShape[1] * 2)))
-                xPool = int(np.ceil(float(inputShape[2])/(self.gtShape[2] * 2)))
-                #We pad inputPooled to get to gt temporal shape of 7
-                #self.padInput = tf.pad(self.inputImage, [[0, 0], [1, 2], [0, 0], [0, 0], [0, 0]])
+                yPool = int(np.ceil(float(16)/(self.gtShape[1]*2)))
+                xPool = int(np.ceil(float(64)/(self.gtShape[2]*2)))
+
                 #Pool over spatial dimensions to be 2x2
                 self.h_conv1_pool= tf.nn.max_pool(self.h_dropout, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
                 self.camPooled = tf.nn.max_pool(self.h_dropout, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
-                self.conv2_w = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
+                self.conv2_w = weight_variable_xavier([1, 1, 3072, self.numClasses], "weight")
                 self.conv2_b = bias_variable([self.numClasses], "bias" )
 
                 self.h_conv2 = tf.nn.conv2d(self.h_conv1_pool, self.conv2_w, [1, 1, 1, 1], padding="SAME") + self.conv2_b
@@ -100,7 +103,6 @@ class MLPVid(TFObj):
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
-
                 self.reshape_cam = tf.transpose(self.cam, [0, 3, 1, 2])
 
                 #Get ranking from h_conv
@@ -130,10 +132,8 @@ class MLPVid(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                if(self.lossWeight == None):
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
-                else:
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
+                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3))
+
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):
@@ -141,8 +141,6 @@ class MLPVid(TFObj):
                         var_list=[
                             self.conv1_w,
                             self.conv2_w,
-                            #self.beta,
-                            #self.gamma
                         ]
                         )
                 self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
@@ -155,34 +153,30 @@ class MLPVid(TFObj):
         (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=5)
 
         #Summaries
-        tf.scalar_summary('loss', self.loss, name="loss")
+        tf.scalar_summary('loss', self.loss, name="accuracy")
         tf.scalar_summary('accuracy', self.accuracy, name="accuracy")
         for c in range(self.numClasses):
             className = self.idxToName[c]
             tf.scalar_summary(className+' F1', self.classF1[c])
 
         tf.histogram_summary('input', self.inputImage, name="image_vis")
-        tf.histogram_summary('inputPooled', self.inputPooled, name="image_vis")
+        tf.histogram_summary('hiddenPooled', self.hiddenPooled, name="image_vis")
         tf.histogram_summary('gt', self.select_gt, name="gt_vis")
         #Conv layer histograms
+        tf.histogram_summary('h_hidden', self.h_hidden, name="hidden_vis")
         tf.histogram_summary('h_conv1', self.h_conv1, name="conv1_vis")
-        #tf.histogram_summary('h_norm_conv1', self.h_norm_conv1, name="norm_conv1_vis")
         tf.histogram_summary('h_conv2', self.h_conv2, name="conv2_vis")
         tf.histogram_summary('est', self.est, name="est_vis")
         #Weight and bias hists
-
+        tf.histogram_summary('h_weight', self.h_weight, name="weight_vis")
+        tf.histogram_summary('h_bias', self.h_bias, name="bias_vis")
         tf.histogram_summary('conv1_w', self.conv1_w, name="conv1_w_vis")
         tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
-        #tf.histogram_summary('conv1_beta', self.beta, name="beta_vis")
-        #tf.histogram_summary('conv1_gamma', self.gamma, name="gamma_vis")
         tf.histogram_summary('conv2_w', self.conv2_w, name="conv2_w_vis")
         tf.histogram_summary('conv2_b', self.conv2_b, name="conv2_b_vis")
 
-
     def getLoadVars(self):
         v = tf.all_variables()
-
-        #return [var for var in v if ("weight" in var.name) or ("bias" in var.name)]
         return v
 
     #Trains model for numSteps
@@ -192,24 +186,27 @@ class MLPVid(TFObj):
         for i in range(self.innerSteps):
             #Get data from dataObj
             data = dataObj.getData(self.batchSize)
-            (dataOutY, dataOutX, dataVals) = sp.find(data[0])
-
             if(self.gtSparse):
                 (gtOutY, gtOutX, gtVals) = sp.find(data[1])
-                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
+                feedDict = {self.inputImage:data[0],
                             self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
                             self.keep_prob:.5
                             }
             else:
-                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
-                        self.gt:data[1],
-                        self.keep_prob:.5
-                        }
+                feedDict = {self.inputImage:data[0],
+                            self.gt:data[1],
+                            self.keep_prob:.5
+                            }
 
             #feedDict = {self.inputImage: data[0], self.gt: data[1]}
             #Run optimizer
-            self.sess.run(self.optimizerAll, feed_dict=feedDict)
-            self.sess.run(self.optimizerBias, feed_dict=feedDict)
+            if(self.preTrain):
+                self.sess.run(self.optimizerPre, feed_dict=feedDict)
+                self.sess.run(self.optimizerPreBias, feed_dict=feedDict)
+            else:
+                self.sess.run(self.optimizerAll, feed_dict=feedDict)
+                self.sess.run(self.optimizerBias, feed_dict=feedDict)
+
             if(i%self.writeStep == 0):
                 summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
                 self.train_writer.add_summary(summary, self.timestep)
@@ -226,10 +223,26 @@ class MLPVid(TFObj):
                 gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
             else:
                 gt = data[1]
+            print "Plotting"
+            self.evalAndPlotWeights(feedDict, filename)
             self.evalAndPlotCam(feedDict, data, gt, filename)
 
+    def evalAndPlotWeights(self, feedDict, prefix):
+        np_weights = self.sess.run(self.h_weight, feed_dict=feedDict)
+        (ntime, ny, nx, nfns, nf) = np_weights.shape
+        np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, 3, 2, nf))
+        for s in range(2):
+            filename = prefix
+            if(s == 0):
+                filename += "_left"
+            elif(s == 1):
+                filename += "_right"
+            for t in range(ntime):
+                filename += "_time" + str(t) + ".png"
+                plotWeights = np_weights_reshape[t, :, :, :, s, :]
+                plot_weights(plotWeights, filename, [3, 0, 1, 2])
+
     def evalAndPlotCam(self, feedDict, data, gt, prefix):
-        print "Plotting"
 
         #We need feed_dict here
         cam = self.sess.run(self.reshape_cam, feed_dict=feedDict)
@@ -266,25 +279,25 @@ class MLPVid(TFObj):
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set
     def evalModel(self, inData, inGt, inImg, gtShape, plot=True):
-        (dataOutY, dataOutX, dataVals) = sp.find(inData)
+
         if(inGt != None):
             if(self.gtSparse):
                 (gtOutY, gtOutX, gtVals) = sp.find(inGt)
-                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
-                        self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
+                feedDict = {self.inputImage:inData,
+                            self.gtIndices:[gtOutY, gtOutX], self.gtValues:gtVals,
+                            self.keep_prob:1.0
+                            }
+            else:
+                feedDict = {self.inputImage:inData,
+                        self.gt:inGt,
                         self.keep_prob:1.0
                         }
-            else:
-                feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
-                        self.gt:inGt,
-                       self.keep_prob:1.0
-                       }
         else:
-            feedDict = {self.dataIndices:[dataOutY, dataOutX], self.dataValues:dataVals,
-                    self.keep_prob:1.0
-                    }
-
+            feedDict ={self.inputImage:inData,
+                        self.keep_prob:1.0
+                      }
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
+
         if(inGt != None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)

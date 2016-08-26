@@ -167,7 +167,8 @@ class MLPBBVid(TFObj):
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):
-                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
+                #self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
+                self.optimizerAll = tf.train.AdadeltaOptimizer(1).minimize(self.loss,
                         var_list=[
                             self.weight,
                             self.conv1_w,
