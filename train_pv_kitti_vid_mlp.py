@@ -59,10 +59,10 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            False,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4.ckpt",
+    'load':            True,
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_mlp.ckpt",
     #Device to run on
-    'device':          '/cpu:0',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      10000000, #1000000,
@@ -83,6 +83,7 @@ params = {
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
     'inputScale': 100,
+    'regWeight': 1e-4,
 }
 
 #Allocate tensorflow object

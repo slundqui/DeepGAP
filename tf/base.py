@@ -16,7 +16,11 @@ class TFObj(object):
     def __init__(self, params, inputShape):
         self.loadParams(params)
         self.makeDirs()
-        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+
+        config = tf.ConfigProto()
+        #config.gpu_options.allow_growth=True
+        config.allow_soft_placement=True
+        self.sess = tf.Session(config=config)
         self.buildModel(inputShape)
         self.initialize()
         self.writeSummary()

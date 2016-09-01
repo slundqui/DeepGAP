@@ -30,15 +30,28 @@ dncFilenames= [
 
 #trainFnPrefix = "/shared/KITTI/objdet/training/"
 
+trainRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_train_list.txt"
+testRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_test_list.txt"
+
+trainf = open(trainRangeFn, 'r')
+trainLines = trainf.readlines()
+trainf.close()
+trainRange = [int(l) for l in trainLines]
+
+testf = open(testRangeFn, 'r')
+testLines = testf.readlines()
+testf.close()
+testRange = [int(l) for l in testLines]
+
 #Get object from which tensorflow will pull data from
-trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, startIdx = 0, stopIdx = 6000)
-testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, startIdx=6000, stopIdx=-1)
+trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange)
+testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=testRange)
 
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/sup_kitti_vid_4x8_plot/",
+    'runDir':          "/sup_kitti_vid_4x8_slp/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -52,14 +65,14 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8.ckpt",
     #Device to run on
-    'device':          '/gpu:0',
+    'device':          '/gpu:1',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      1, #1000000,
-    'innerSteps':      1, #300,
+    'outerSteps':      1000000, #1000000,
+    'innerSteps':      100, #300,
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
@@ -74,7 +87,8 @@ params = {
     'preTrain': False,
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
-    'gtSparse': False
+    'gtSparse': False,
+    'regWeight': 1e-4,
 }
 
 #Allocate tensorflow object

@@ -43,7 +43,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_kitti_vid_2x2/",
+    'runDir':          "/pv_kitti_vid_4x8_slp/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -63,8 +63,8 @@ params = {
     'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      10000000, #1000000,
-    'innerSteps':      1, #300,
+    'outerSteps':      1000000, #1000000,
+    'innerSteps':      100, #300,
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
@@ -79,7 +79,9 @@ params = {
     'preTrain': False,
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
-    'gtSparse': False
+    'gtSparse': False,
+    'inputScale': 100,
+    'regWeight': 1e-4,
 }
 
 #Allocate tensorflow object

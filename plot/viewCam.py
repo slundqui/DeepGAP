@@ -7,6 +7,9 @@ import pdb
 import colorsys
 import operator
 
+
+
+
 def plotCam(outPrefix, inImage, gtIdx, cam, idxs, vals, idxToName):
     fontsize = 6
     matplotlib.rc('font', size=fontsize)
@@ -104,6 +107,10 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
         yFactorGt = nyImage/nyGT
         xFactorGt = nxImage/nxGT
 
+    #Generate colors for classes
+    labelColors = get_N_HexCol(numClass)
+
+
     numCam = len(idxs[0, :])
 
     assert(nyImage%nyCam == 0)
@@ -121,7 +128,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
         sortedCam = cam[b, idxs[b, :], :, :]
 
         numTotal = 2*numCam + 1
-        xTile = int(np.ceil(np.sqrt(numTotal)))
+        xTile = int(np.floor(np.sqrt(numTotal)))
         yTile = int(np.ceil(float(numTotal)/xTile))
         image = inImage[b, :, :, :]
         norm_image = (image - np.min(image))/(np.max(image) - np.min(image))
@@ -207,46 +214,46 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
             numUnique = len(uniqueCamLabels)
 
 
-        labelColors = get_N_HexCol(numUnique)
+        #labelColors = get_N_HexCol(numUnique)
 
-        #Assign color per label
-        c = {}
-        i=0
-        for l in uniqueCamLabels:
-            if(not l in c):
-                c[l] = labelColors[i]
-                i += 1
+        ##Assign color per label
+        #c = {}
+        #i=0
+        #for l in uniqueCamLabels:
+        #    if(not l in c):
+        #        c[l] = labelColors[i]
+        #        i += 1
 
-        if(gt != None):
-            for l in uniqueGtLabels:
-                if(not l in c):
-                    c[l] = labelColors[i]
-                    i += 1
+        #if(gt != None):
+        #    for l in uniqueGtLabels:
+        #        if(not l in c):
+        #            c[l] = labelColors[i]
+        #            i += 1
 
         outCam = np.zeros((nyCam, nxCam, 3))
 
-        numPerLabel = dict.fromkeys(c.keys(), 0)
+        #numPerLabel = dict.fromkeys(c.keys(), 0)
 
         for (i, label) in enumerate(uniqueCamLabels):
             camIdxs = np.nonzero(camLabels == label)
-            numPerLabel[label] += len(camIdxs[0])
-            outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
+            #numPerLabel[label] += len(camIdxs[0])
+            outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(labelColors[label])
 
         if(gt != None):
             for (i, label) in enumerate(uniqueGtLabels):
                 gtIdxs = np.nonzero(gtLabels == label)
-                numPerLabel[label] += len(gtIdxs[0])
-                outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
+                #numPerLabel[label] += len(gtIdxs[0])
+                outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(labelColors[label])
 
         rects = []
         labels = []
         #Rank by numPerLabel
-        sortLabel = sorted(numPerLabel.items(), key=operator.itemgetter(1))
+        #sortLabel = sorted(numPerLabel.items(), key=operator.itemgetter(1))
         #Reverse sort
-        sortLabel = sortLabel[::-1]
+        #sortLabel = sortLabel[::-1]
 
-        for (label, drop) in sortLabel:
-            rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=c[label]))
+        for label in range(numClass):
+            rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=labelColors[label]))
             labels.append(idxToName[label])
 
         resizeCam = zoom(outCam, [yFactorCam, xFactorCam, 1])
@@ -254,20 +261,24 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
             resizeGt = zoom(outGt, [yFactorGt, xFactorGt, 1])
 
         if(gt != None):
-            f, axarr = plt.subplots(2, 1, figsize=(7.5, 10))
+            f, axarr = plt.subplots(3, 1, figsize=(7.5, 10))
         else:
-            f, axarr = plt.subplots(1, 1, figsize=(7.5, 10))
+            f, axarr = plt.subplots(2, 1, figsize=(7.5, 10))
         if(gt != None):
             axarr[0].imshow(norm_image)
-            axarr[0].imshow(resizeCam, alpha=.9)
-            axarr[0].set_title("Estimate")
+            axarr[0].set_title("Image")
             axarr[1].imshow(norm_image)
-            axarr[1].imshow(resizeGt, alpha=.9)
-            axarr[1].set_title("GT")
+            axarr[1].imshow(resizeCam, alpha=.9)
+            axarr[1].set_title("Estimate")
+            axarr[2].imshow(norm_image)
+            axarr[2].imshow(resizeGt, alpha=.9)
+            axarr[2].set_title("GT")
         else:
-            axarr.imshow(norm_image)
-            axarr.imshow(resizeCam, alpha=.9)
-            axarr.set_title("Estimate")
+            axarr[0].imshow(norm_image)
+            axarr[0].set_title("Image")
+            axarr[1].imshow(norm_image)
+            axarr[1].imshow(resizeCam, alpha=.9)
+            axarr[1].set_title("Estimate")
 
         lgd = plt.legend(rects, labels, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 

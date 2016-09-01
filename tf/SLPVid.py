@@ -23,6 +23,7 @@ class SLPVid(TFObj):
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
         self.inputScale = params['inputScale']
+        self.regWeight = params['regWeight']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -43,7 +44,7 @@ class SLPVid(TFObj):
                         validate_indices=False
                         )
 
-                self.inputImage = tf.inputScale * tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
+                self.inputImage = self.inputScale * tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
 
                 if(self.gtSparse):
                     self.gtIndices = tf.placeholder("int64", [2, None], "gtIndices")
@@ -66,26 +67,18 @@ class SLPVid(TFObj):
             with tf.name_scope("Pool"):
                 yPool = int(np.ceil(float(inputShape[1])/self.gtShape[1]))
                 xPool = int(np.ceil(float(inputShape[2])/self.gtShape[2]))
-                #We pad inputPooled to get to gt temporal shape of 7
-                #self.padInput = tf.pad(self.inputImage, [[0, 0], [1, 2], [0, 0], [0, 0], [0, 0]])
-                #Pool over spatial dimensions to be 2x2
-                self.inputPooled = tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], yPool, xPool, 1], padding="SAME")
 
-                self.camPooled = tf.nn.max_pool3d(self.inputImage, ksize=[1, inputShape[0], yPool, xPool, 1], strides=[1, inputShape[0], 1, 1, 1], padding="SAME")
+                #Pool over spatial dimensions to be 2x2
+                self.timePooled = tf.reduce_max(self.inputImage, reduction_indices=1)
+                self.inputPooled = tf.nn.max_pool(self.timePooled , ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
+                self.camPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
                 self.weight = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
                 self.bias = bias_variable([self.numClasses], "bias" )
 
-                self.r_inputPooled = tf.squeeze(self.inputPooled, squeeze_dims=[1])
-                self.r_camPooled = tf.squeeze(self.camPooled, squeeze_dims=[1])
-
-                self.h_conv = tf.nn.conv2d(self.r_inputPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
-
+                self.h_conv = tf.nn.conv2d(self.inputPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
                 #We evaluate pooling with smaller stride here
-                self.cam = tf.nn.conv2d(self.r_camPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
-
-                #Reshape batch and time together
-                #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
+                self.cam = tf.nn.conv2d(self.camPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
 
                 self.reshape_cam = tf.transpose(self.cam, [0, 3, 1, 2])
 
@@ -116,10 +109,13 @@ class SLPVid(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
+
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.weight))
+
                 if(self.lossWeight == None):
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
                 else:
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):

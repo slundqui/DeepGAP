@@ -75,11 +75,11 @@ params = {
     'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8.ckpt",
     #Device to run on
-    'device':          '/cpu:0',
+    'device':          '/gpu:1',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      1, #1000000,
-    'innerSteps':      1, #300,
+    'outerSteps':      1000000, #1000000,
+    'innerSteps':      100, #300,
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
@@ -94,7 +94,8 @@ params = {
     'preTrain': False,
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
-    'gtSparse': False
+    'gtSparse': False,
+    'regWeight': 0,
 }
 
 #Allocate tensorflow object

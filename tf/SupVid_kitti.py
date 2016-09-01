@@ -23,6 +23,7 @@ class SupVid_kitti(TFObj):
         self.lossWeight = params['lossWeight']
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
+        self.regWeight = params['regWeight']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -40,9 +41,6 @@ class SupVid_kitti(TFObj):
                 self.stereoImage = tf.reshape(self.permuteImage,
                         [self.batchSize, 3, inputShape[1], inputShape[2], inputShape[3]*2])
                 self.padInput = tf.pad(self.stereoImage, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
-                #Reshape time dimension to feature dimension
-
-
 
                 if(self.gtSparse):
                     self.gtIndices = tf.placeholder("int64", [2, None], "gtIndices")
@@ -66,28 +64,20 @@ class SupVid_kitti(TFObj):
                 self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
                 self.h_bias = bias_variable([3072], "hidden_bias")
                 self.h_hidden= tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
-                #self.training = tf.placeholder("bool", name="training")
-                #(self.h_norm_hidden, self.beta, self.gamma) = standard_batch_norm("hidden", self.h_hidden, 3072, self.training)
 
             with tf.name_scope("Pool"):
-                #Pool over spatial dimensions to be 2x2
-                #self.inputPooled = tf.nn.max_pool3d(self.h_norm_hidden, ksize=[1, 4, 8, 8, 1], strides=[1, 4, 8, 8, 1], padding="SAME")
-                #self.camPooled = tf.nn.max_pool3d(self.h_norm_hidden, ksize=[1, 4, 8, 8, 1], strides=[1, 4, 1, 1, 1], padding="SAME")
-
                 yPool = int(np.ceil(float(16)/self.gtShape[1]))
                 xPool = int(np.ceil(float(64)/self.gtShape[2]))
 
-                self.inputPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 2, yPool, xPool, 1], strides=[1, 2, yPool, xPool, 1], padding="SAME")
-                self.camPooled = tf.nn.max_pool3d(self.h_hidden, ksize=[1, 2, yPool, xPool, 1], strides=[1, 2, 1, 1, 1], padding="SAME")
+                self.timePooled = tf.reduce_max(self.h_hidden, reduction_indices=1)
+                self.inputPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
+                self.camPooled = tf.nn.max_pool(self.timePooled , ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
                 self.weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "weight")
                 self.bias = bias_variable([self.numClasses], "bias" )
 
-                self.r_inputPooled = tf.squeeze(self.inputPooled, squeeze_dims=[1])
-                self.r_camPooled = tf.squeeze(self.camPooled, squeeze_dims=[1])
-
-                self.h_conv = tf.nn.conv2d(self.r_inputPooled, self.weight, [1, 1, 1, 1], padding="VALID") + self.bias
-                self.cam = tf.nn.conv2d(self.r_camPooled, self.weight, [1, 1, 1, 1], padding="VALID") + self.bias
+                self.h_conv = tf.nn.conv2d(self.inputPooled, self.weight, [1, 1, 1, 1], padding="VALID") + self.bias
+                self.cam = tf.nn.conv2d(self.camPooled, self.weight, [1, 1, 1, 1], padding="VALID") + self.bias
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
@@ -120,7 +110,9 @@ class SupVid_kitti(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3))
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.h_weight)) + tf.reduce_sum(tf.square(self.weight))
+
+                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):

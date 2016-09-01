@@ -23,6 +23,7 @@ class SupVidMLP_kitti(TFObj):
         self.lossWeight = params['lossWeight']
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
+        self.regWeight = params['regWeight']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -132,19 +133,23 @@ class SupVidMLP_kitti(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3))
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.conv2_w)) + tf.reduce_sum(tf.square(self.conv1_w)) + tf.reduce_sum(tf.square(self.h_weight))
+
+                self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
 
                 #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
 
             with tf.name_scope("Opt"):
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
+                            self.h_weight,
                             self.conv1_w,
                             self.conv2_w,
                         ]
                         )
                 self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
                         var_list=[
+                            self.h_bias,
                             self.conv1_b,
                             self.conv2_b,
                         ]
@@ -296,8 +301,8 @@ class SupVidMLP_kitti(TFObj):
             feedDict ={self.inputImage:inData,
                         self.keep_prob:1.0
                       }
-        outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
 
+        outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)

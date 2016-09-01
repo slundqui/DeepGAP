@@ -8,10 +8,10 @@ import pdb
 
 #Paths to list of filenames
 trainInputs = [
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_0.pvp",
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_1.pvp",
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_2.pvp",
-            "/home/slundquist/mountData/imagenet_pv/train3/S1_3.pvp",
+            "/home/slundquist/mountData/imagenet_pv/train4/S1_0.pvp",
+            "/home/slundquist/mountData/imagenet_pv/train4/S1_1.pvp",
+            "/home/slundquist/mountData/imagenet_pv/train4/S1_2.pvp",
+            "/home/slundquist/mountData/imagenet_pv/train4/S1_3.pvp",
             ]
 
 trainGts = [
@@ -47,7 +47,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_imagenet_vid_2x4_mlp_dropout/",
+    'runDir':          "/pv_imagenet_vid_2x4_mlp_new/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -61,7 +61,7 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_imagenet_vid_2x4_mlp_dropout.ckpt",
     #Device to run on
     'device':          '/gpu:1',
@@ -84,6 +84,8 @@ params = {
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
     'gtSparse':True,
+    'inputScale':10,
+    'regWeight': 1e-4,
 }
 
 

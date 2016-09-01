@@ -23,6 +23,7 @@ class MLPVid(TFObj):
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
         self.inputScale = params['inputScale']
+        self.regWeight = params['regWeight']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -64,8 +65,6 @@ class MLPVid(TFObj):
             with tf.name_scope("conv1"):
                 yPool = 2
                 xPool = 2
-
-                #Pool over time dimension
                 self.timePooled = tf.reduce_max(self.inputImage, reduction_indices=1)
                 self.inputPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
@@ -78,7 +77,6 @@ class MLPVid(TFObj):
             with tf.name_scope("reg"):
                 self.keep_prob = tf.placeholder(tf.float32)
                 self.h_dropout = tf.nn.dropout(self.h_conv1, self.keep_prob)
-                pass
 
             with tf.name_scope("conv2"):
                 yPool = int(np.ceil(float(inputShape[1])/(self.gtShape[1] * 2)))
@@ -100,7 +98,6 @@ class MLPVid(TFObj):
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
-
                 self.reshape_cam = tf.transpose(self.cam, [0, 3, 1, 2])
 
                 #Get ranking from h_conv
@@ -130,11 +127,12 @@ class MLPVid(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.conv2_w)) + tf.reduce_sum(tf.square(self.conv1_w))
+
                 if(self.lossWeight == None):
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
                 else:
-                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3))
-                #self.loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.square(self.gt - self.est), reduction_indices=[1, 2, 3, 4]))
+                    self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
 
             with tf.name_scope("Opt"):
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
