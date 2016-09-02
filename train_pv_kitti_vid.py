@@ -43,7 +43,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_kitti_vid_4x8_slp/",
+    'runDir':          "/pv_kitti_vid_4x8_slp_noreg/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -81,7 +81,7 @@ params = {
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
     'inputScale': 100,
-    'regWeight': 1e-4,
+    'regWeight': 0,
 }
 
 #Allocate tensorflow object

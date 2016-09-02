@@ -45,22 +45,22 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_kitti_vid_4x8_mlp/",
+    'runDir':          "/pv_kitti_vid_4x8_mlp_fromslp_noreg/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
     'saveFile':        "/save-model",
-    'savePeriod':      10, #In terms of displayPeriod
+    'savePeriod':      100, #In terms of displayPeriod
     #output plots directory
     'plotDir':         "plots/",
-    'plotPeriod':      10, #With respect to displayPeriod
+    'plotPeriod':      100, #With respect to displayPeriod
     #Progress step
     'progress':        1,
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_mlp.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_slp_noreg.ckpt",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -84,6 +84,7 @@ params = {
     'gtSparse': False,
     'inputScale': 100,
     'regWeight': 1e-4,
+    'resLoad': True,
 }
 
 #Allocate tensorflow object

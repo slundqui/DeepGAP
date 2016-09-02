@@ -24,6 +24,7 @@ class SupVidMLP_kitti(TFObj):
         self.gtShape = params['gtShape']
         self.gtSparse = params['gtSparse']
         self.regWeight = params['regWeight']
+        self.resLoad = params['resLoad']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -182,6 +183,10 @@ class SupVidMLP_kitti(TFObj):
 
     def getLoadVars(self):
         v = tf.all_variables()
+        if(self.resLoad):
+            #Load first and 3rd layers
+            v = [var for var in v if ("hidden_weight" in var.name) or ("hidden_bias" in var.name) or ("weight" in var.name) or ("bias" in var.name)]
+
         return v
 
     #Trains model for numSteps

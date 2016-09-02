@@ -24,6 +24,7 @@ class MLPVid(TFObj):
         self.gtSparse = params['gtSparse']
         self.inputScale = params['inputScale']
         self.regWeight = params['regWeight']
+        self.resLoad = params['resLoad']
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
@@ -179,8 +180,8 @@ class MLPVid(TFObj):
 
     def getLoadVars(self):
         v = tf.all_variables()
-
-        #return [var for var in v if ("weight" in var.name) or ("bias" in var.name)]
+        if(self.resLoad):
+            v = [var for var in v if ("weight" in var.name) or ("bias" in var.name)]
         return v
 
     #Trains model for numSteps
