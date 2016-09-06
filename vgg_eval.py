@@ -34,11 +34,11 @@ params = {
     'savePeriod':      10, #In terms of displayPeriod
     #output plots directory
     'plotDir':         "plots/",
-    'plotPeriod':      10, #With respect to displayPeriod
+    'plotPeriod':      1, #With respect to displayPeriod
     #Progress step
     'progress':        1,
     #Controls how often to write out to tensorboard
-    'writeStep':       50, #300,
+    'writeStep':       1, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
