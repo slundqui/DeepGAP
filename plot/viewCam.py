@@ -107,9 +107,8 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
         yFactorGt = nyImage/nyGT
         xFactorGt = nxImage/nxGT
 
-    #Generate colors for classes
-    labelColors = get_N_HexCol(numClass)
-
+    ##Generate colors for classes
+    #labelColors = get_N_HexCol(numClass)
 
     numCam = len(idxs[0, :])
 
@@ -127,7 +126,10 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
     for b in range(nbatch):
         sortedCam = cam[b, idxs[b, :], :, :]
 
-        numTotal = 2*numCam + 1
+        if(gt is not None):
+            numTotal = 2*numCam + 1
+        else:
+            numTotal = numCam + 1
         xTile = int(np.floor(np.sqrt(numTotal)))
         yTile = int(np.ceil(float(numTotal)/xTile))
         image = inImage[b, :, :, :]
@@ -157,8 +159,10 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                         strLabel = idxToName[np.argmax(np.mean(gt[b, :, :, :], axis=(0, 1)))].split(',')[0]
                         axarr[0, 0].set_title(strLabel, fontsize=fontsize)
                     #plt.colorbar(axx, ax = axarr[0, 0])
-                elif(camIdx < 5):
-                    if(gt != None):
+                    continue
+
+                if(gt is not None):
+                    if(camIdx < 5):
                         gtImg = gt[b, :, :, idxs[b, camIdx]]
                         resizeGT = zoom(gtImg, [yFactorGt, xFactorGt])
                         axarr[y, x].imshow(norm_image)
@@ -168,8 +172,23 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel+ " gt", fontsize=fontsize)
 
+                    else:
+                        camIdx = camIdx - 5
+                        if(camIdx < numCam):
+                            camImg = sortedCam[camIdx, :, :]
+
+                            #maxCam = np.max(camImg)
+                            ##minCam = -maxCam
+                            #minCam = np.min(camImg)
+
+                            resizeCam = zoom(camImg, [yFactorCam, xFactorCam])
+                            axarr[y, x].imshow(norm_image)
+                            axx = axarr[y, x].imshow(resizeCam, cmap=colormap, vmax=maxCam, vmin=minCam, alpha=.6)
+                            #plt.colorbar(axx, ax = axarr[y, x])
+                            #Take only label after first comma
+                            strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
+                            axarr[y, x].set_title(strLabel + ": " + str('%.2g'%vals[b, camIdx]), fontsize=fontsize)
                 else:
-                    camIdx = camIdx - 5
                     if(camIdx < numCam):
                         camImg = sortedCam[camIdx, :, :]
 
@@ -184,16 +203,6 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                         #Take only label after first comma
                         strLabel = idxToName[idxs[b, camIdx]].split(',')[0]
                         axarr[y, x].set_title(strLabel + ": " + str('%.2g'%vals[b, camIdx]), fontsize=fontsize)
-                #else:
-                #    camIdx = camIdx - 5
-                #    if(camIdx < numCam):
-                #        [numWeights, numClass] = weights.shape
-                #        plotWeights = weights[:, idxs[camIdx]]
-                #        #axx = axarr[y, x].hist(plotWeights, 20, facecolor='green')
-                #        axx = axarr[y, x].bar(range(numWeights), plotWeights)
-                #        axarr[y, x].set_ylim([minWeight, maxWeight])
-                #        strLabel = idxToName[idxs[camIdx]].split(',')[0]
-                #        axarr[y, x].set_title(strLabel + ": " + str(vals[camIdx]))
 
         plt.tight_layout()
 
@@ -214,47 +223,51 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
             numUnique = len(uniqueCamLabels)
 
 
-        #labelColors = get_N_HexCol(numUnique)
+        labelColors = get_N_HexCol(numUnique)
 
-        ##Assign color per label
-        #c = {}
-        #i=0
-        #for l in uniqueCamLabels:
-        #    if(not l in c):
-        #        c[l] = labelColors[i]
-        #        i += 1
+        #Assign color per label
+        c = {}
+        i=0
+        for l in uniqueCamLabels:
+            if(not l in c):
+                c[l] = labelColors[i]
+                i += 1
 
-        #if(gt != None):
-        #    for l in uniqueGtLabels:
-        #        if(not l in c):
-        #            c[l] = labelColors[i]
-        #            i += 1
+        if(gt != None):
+            for l in uniqueGtLabels:
+                if(not l in c):
+                    c[l] = labelColors[i]
+                    i += 1
 
         outCam = np.zeros((nyCam, nxCam, 3))
 
-        #numPerLabel = dict.fromkeys(c.keys(), 0)
+        numPerLabel = dict.fromkeys(c.keys(), 0)
 
         for (i, label) in enumerate(uniqueCamLabels):
             camIdxs = np.nonzero(camLabels == label)
-            #numPerLabel[label] += len(camIdxs[0])
-            outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(labelColors[label])
+            numPerLabel[label] += len(camIdxs[0])
+            #outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(labelColors[label])
+            outCam[camIdxs[0], camIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
 
         if(gt != None):
             for (i, label) in enumerate(uniqueGtLabels):
                 gtIdxs = np.nonzero(gtLabels == label)
-                #numPerLabel[label] += len(gtIdxs[0])
-                outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(labelColors[label])
+                numPerLabel[label] += len(gtIdxs[0])
+                #outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(labelColors[label])
+                outGt[gtIdxs[0], gtIdxs[1], :] = matplotlib.colors.colorConverter.to_rgb(c[label])
 
         rects = []
         labels = []
         #Rank by numPerLabel
-        #sortLabel = sorted(numPerLabel.items(), key=operator.itemgetter(1))
+        sortLabel = sorted(numPerLabel.items(), key=operator.itemgetter(1))
         #Reverse sort
-        #sortLabel = sortLabel[::-1]
+        sortLabel = sortLabel[::-1]
 
-        for label in range(numClass):
-            rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=labelColors[label]))
-            labels.append(idxToName[label])
+        #for label in range(numUnique):
+        for label in sortLabel:
+            rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=c[label[0]]))
+            #rects.append(matplotlib.patches.Rectangle((0, 0), 2, 2, fc=labelColors[label]))
+            labels.append(idxToName[label[0]])
 
         resizeCam = zoom(outCam, [yFactorCam, xFactorCam, 1])
         if(gt != None):

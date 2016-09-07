@@ -265,7 +265,9 @@ class VGGDetGap(TFObj):
 
     #Evaluates inData, but in batchSize batches for memory efficiency
     #If an inGt is provided, will calculate summary as test set
-    def evalModelBatch(self, inData, inGt=None):
+    def evalModelBatch(self, inData, inGt=None, plot=False, filenames=None):
+
+        savedTimestep = self.timestep
         (numData, ny, nx, nf) = inData.shape
         if(inGt != None):
             (numGt, drop) = inGt.shape
@@ -278,9 +280,7 @@ class VGGDetGap(TFObj):
         outIdx = np.zeros((numData, 5))
 
         #Ceil of numData/batchSize
-        numIt = int(numData/self.batchSize) + 1
-
-        #Only write summary on first it
+        numIt = int(np.ceil(float(numData)/self.batchSize))
 
         startOffset = 0
         for it in range(numIt):
@@ -302,7 +302,8 @@ class VGGDetGap(TFObj):
 
             tfInVals[startTfValIdx:endTfValIdx, :, :, :] = inData[startDataIdx:endDataIdx, :, :, :]
 
-            (oVal, oIdx) = self.evalModel(tfInVals, inGt, plot=False)
+            (oVal, oIdx) = self.evalModel(tfInVals, inGt, plot=plot)
+            self.timestep += 1
             outVals[startDataIdx:endDataIdx, :] = oVal
             outIdx[startDataIdx:endDataIdx, :] = oIdx
 
@@ -312,6 +313,8 @@ class VGGDetGap(TFObj):
                 self.test_writer.add_summary(summary, self.timestep)
 
             startOffset += self.batchSize
+
+        self.timestep = savedTimestep
         #Return output data
         return (outVals, outIdx)
 

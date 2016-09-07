@@ -13,11 +13,12 @@ if(len(sys.argv) != 2):
 
 inImageList = sys.argv[1]
 
-#trainImageList = "/home/slundquist/mountData/datasets/imagenet/train_cls.txt"
-#testImageList = "/home/slundquist/mountData/datasets/imagenet/val_cls.txt"
+#Path to imagenet det meta file
+#clsMeta = "/shared/imageNet/devkit/data/meta_det.mat"
+clsMeta = "/home/slundquist/mountData/DeepGAP/saved/meta_det.mat"
 
-clsMeta = "/shared/imageNet/devkit/data/meta_det.mat"
-#clsMeta = "/home/slundquist/mountData/DeepGAP/saved/meta_det.mat"
+#Determines if the script makes plots
+outputPlots = True
 
 #Get object from which tensorflow will pull data from
 evalDataObj = evalObj(inImageList, clsMeta, resizeMethod="crop", normStd=False)
@@ -28,40 +29,42 @@ params = {
     #Inner run directory
     'runDir':          "/demo/",
     'tfDir':           "/tfout",
-    #Save parameters
+    #Save parameters - not used
     'ckptDir':         "/checkpoints/",
     'saveFile':        "/save-model",
     'savePeriod':      10, #In terms of displayPeriod
     #output plots directory
     'plotDir':         "plots/",
-    'plotPeriod':      10, #With respect to displayPeriod
+    'plotPeriod':      1, #With respect to displayPeriod - not used
     #Progress step
     'progress':        1,
     #Controls how often to write out to tensorboard
-    'writeStep':       50, #300,
+    'writeStep':       1, #300,
     #Flag for loading weights from checkpoint
+    #Point to pretrained model
     'load':            True,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/imagenet_det.ckpt",
     #Input vgg file for preloaded weights
     #'vggFile':         "/home/slundquist/mountData/DeepGAP/saved/imagenet-vgg-verydeep-16.mat",
     'vggFile':         "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
     #Device to run on
-    'device':          '/cpu:0',
-    #####ISTA PARAMS######
-    #Num iterations
+    'device':          '/gpu:0',
+
+    #Num iterations - not used
     'outerSteps':      10000000, #1000000,
     'innerSteps':      100, #300,
-    #Batch size
+    #Batch size - keep at 1
     'batchSize':       1,
-    #Learning rate for optimizer
+    #Learning rate for optimizer - not used
     'learningRate':    1e-4,
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,
+    'regStrength': .001,
+    'preTrain': False,
+    #Misc
     'numClasses': 200+1,
     'idxToName': evalDataObj.idxToName,
-    'preTrain': False,
-    'regStrength': .001,
 }
 
 #Allocate tensorflow object
@@ -69,15 +72,15 @@ params = {
 tfObj = VGGDetGap(params, evalDataObj.inputShape)
 
 print "Done init"
-(outVals, outIdx) = tfObj.evalModelBatch(evalDataObj.getData(evalDataObj.numImages))
+(outVals, outIdx) = tfObj.evalModelBatch(evalDataObj.getData(evalDataObj.numImages), plot=outputPlots)
 filenames = evalDataObj.imgFiles
 
+#Open file, eval, and write to file
 outFile = params["outDir"] + params["runDir"] + "output.txt"
 f = open(outFile, 'w')
 
-
-for filename, val, idx in zip(filenames, outVals.tolist(), outIdx.tolist()):
-    outStr = filename + ","
+for i, (filename, val, idx) in enumerate(zip(filenames, outVals.tolist(), outIdx.tolist())):
+    outStr = str(i) + ": " + filename + ","
     for v, i in zip(val, idx):
         outStr += "[\"" + evalDataObj.idxToName[int(i)] + "\"]," + str(v) +","
     outStr += "\n"
