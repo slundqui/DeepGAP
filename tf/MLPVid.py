@@ -26,10 +26,18 @@ class MLPVid(TFObj):
         self.regWeight = params['regWeight']
         self.resLoad = params['resLoad']
 
+    def defineVars(self):
+        #Define all variables outside of scope
+        self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
+        self.class_bias = bias_variable([self.numClasses], "class_bias")
+        self.conv1_w = weight_variable_xavier([1, 1, inputShape[3], 3072], "conv1_w")
+        self.conv1_b = bias_variable([3072], "conv1_b")
+
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
         #Running on GPU
         with tf.device(self.device):
+            self.defineVars()
             with tf.name_scope("inputOps"):
                 #self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]], "inputImage")
                 #self.gt = node_variable([self.batchSize, 1, 8, 16, self.numClasses], "gt")
@@ -69,9 +77,6 @@ class MLPVid(TFObj):
                 self.timePooled = tf.reduce_max(self.inputImage, reduction_indices=1)
                 self.inputPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
-                self.conv1_w = tf.Variable(tf.zeros([1, 1, inputShape[3], 3072]), "conv1_w")
-                self.conv1_b = bias_variable([3072], "conv1_b")
-
                 self.h_res = tf.nn.relu(tf.nn.conv2d(self.inputPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
                 self.h_conv1 = tf.nn.relu(self.inputPooled + self.h_res)
 
@@ -89,13 +94,10 @@ class MLPVid(TFObj):
 
                 self.camPooled = tf.nn.max_pool(self.h_dropout, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
-                self.conv2_w = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
-                self.conv2_b = bias_variable([self.numClasses], "bias" )
-
-                self.h_conv2 = tf.nn.conv2d(self.h_conv1_pool, self.conv2_w, [1, 1, 1, 1], padding="SAME") + self.conv2_b
+                self.h_conv2 = tf.nn.conv2d(self.h_conv1_pool, self.class_weight, [1, 1, 1, 1], padding="SAME") + self.class_bias
 
                 #We evaluate pooling with smaller stride here
-                self.cam = tf.nn.conv2d(self.camPooled, self.conv2_w, [1, 1, 1, 1], padding="SAME") + self.conv2_b
+                self.cam = tf.nn.conv2d(self.camPooled, self.class_weight, [1, 1, 1, 1], padding="SAME") + self.class_bias
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
@@ -128,7 +130,7 @@ class MLPVid(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                self.weightRegLoss = tf.reduce_sum(tf.square(self.conv2_w)) + tf.reduce_sum(tf.square(self.conv1_w))
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.class_weight)) + tf.reduce_sum(tf.square(self.conv1_w))
 
                 if(self.lossWeight == None):
                     self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
@@ -139,7 +141,7 @@ class MLPVid(TFObj):
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
                             self.conv1_w,
-                            self.conv2_w,
+                            self.class_weight,
                             #self.beta,
                             #self.gamma
                         ]
@@ -147,7 +149,7 @@ class MLPVid(TFObj):
                 self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
                         var_list=[
                             self.conv1_b,
-                            self.conv2_b,
+                            self.class_bias,
                         ]
                         )
 
@@ -174,14 +176,14 @@ class MLPVid(TFObj):
         tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
         #tf.histogram_summary('conv1_beta', self.beta, name="beta_vis")
         #tf.histogram_summary('conv1_gamma', self.gamma, name="gamma_vis")
-        tf.histogram_summary('conv2_w', self.conv2_w, name="conv2_w_vis")
-        tf.histogram_summary('conv2_b', self.conv2_b, name="conv2_b_vis")
+        tf.histogram_summary('class_weight', self.class_weight, name="class_weight_vis")
+        tf.histogram_summary('class_bias', self.class_bias, name="class_bias_vis")
 
 
     def getLoadVars(self):
         v = tf.all_variables()
         if(self.resLoad):
-            v = [var for var in v if ("weight" in var.name) or ("bias" in var.name)]
+            v = [var for var in v if ("class_weight" in var.name) or ("class_bias" in var.name)]
         return v
 
     #Trains model for numSteps

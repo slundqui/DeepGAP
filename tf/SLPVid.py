@@ -25,10 +25,16 @@ class SLPVid(TFObj):
         self.inputScale = params['inputScale']
         self.regWeight = params['regWeight']
 
+    def defineVars(self):
+        #Define all variables outside of scope
+        self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
+        self.class_bias = bias_variable([self.numClasses], "class_bias" )
+
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
         #Running on GPU
         with tf.device(self.device):
+            self.defineVars()
             with tf.name_scope("inputOps"):
                 #self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]], "inputImage")
                 #self.gt = node_variable([self.batchSize, 1, 8, 16, self.numClasses], "gt")
@@ -73,12 +79,9 @@ class SLPVid(TFObj):
                 self.inputPooled = tf.nn.max_pool(self.timePooled , ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
                 self.camPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
-                self.weight = weight_variable_xavier([1, 1, inputShape[3], self.numClasses], "weight")
-                self.bias = bias_variable([self.numClasses], "bias" )
-
-                self.h_conv = tf.nn.conv2d(self.inputPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
+                self.h_conv = tf.nn.conv2d(self.inputPooled, self.class_weight, [1, 1, 1, 1], padding="SAME") + self.class_bias
                 #We evaluate pooling with smaller stride here
-                self.cam = tf.nn.conv2d(self.camPooled, self.weight, [1, 1, 1, 1], padding="SAME") + self.bias
+                self.cam = tf.nn.conv2d(self.camPooled, self.class_weight, [1, 1, 1, 1], padding="SAME") + self.class_bias
 
                 self.reshape_cam = tf.transpose(self.cam, [0, 3, 1, 2])
 
@@ -110,7 +113,7 @@ class SLPVid(TFObj):
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
 
-                self.weightRegLoss = tf.reduce_sum(tf.square(self.weight))
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.class_weight))
 
                 if(self.lossWeight == None):
                     self.loss = tf.reduce_mean(-tf.reduce_sum(self.select_gt * tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
@@ -121,12 +124,12 @@ class SLPVid(TFObj):
             with tf.name_scope("Opt"):
                 self.optimizerAll = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
                         var_list=[
-                            self.weight,
+                            self.class_weight,
                         ]
                         )
                 self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
                         var_list=[
-                            self.bias,
+                            self.class_bias,
                         ]
                         )
 
@@ -146,8 +149,8 @@ class SLPVid(TFObj):
         tf.histogram_summary('h_conv', self.h_conv, name="conv1_vis")
         tf.histogram_summary('est', self.est, name="est_vis")
         #Weight and bias hists
-        tf.histogram_summary('weight', self.weight, name="weight_vis")
-        tf.histogram_summary('bias', self.bias, name="bias_vis")
+        tf.histogram_summary('class_weight', self.class_weight, name="weight_vis")
+        tf.histogram_summary('class_bias', self.class_bias, name="bias_vis")
 
 
     def getLoadVars(self):

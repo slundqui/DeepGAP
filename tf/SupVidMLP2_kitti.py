@@ -26,10 +26,22 @@ class SupVidMLP2_kitti(TFObj):
         self.regWeight = params['regWeight']
         self.resLoad = params['resLoad']
 
+    def defineVars(self):
+        #Define all variables outside of scope
+        self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
+        self.h_bias = bias_variable([3072], "hidden_bias")
+        self.conv1_w = weight_variable_xavier([1, 1, 3072, 3072], "conv1_w")
+        self.conv1_b = bias_variable([3072], "conv1_b")
+        self.conv2_w = weight_variable_xavier([1, 1, 3072, 3072], "conv2_w")
+        self.conv2_b = bias_variable([3072], "conv2_b" )
+        self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
+        self.class_bias = bias_variable([self.numClasses], "class_bias" )
+
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
         #Running on GPU
         with tf.device(self.device):
+            self.defineVars()
             with tf.name_scope("inputOps"):
                 #self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]], "inputImage")
                 #self.gt = node_variable([self.batchSize, 1, 8, 16, self.numClasses], "gt")
@@ -63,8 +75,6 @@ class SupVidMLP2_kitti(TFObj):
                 #self.norm_gt = self.gt/tf.reduce_sum(self.gt, reduction_indices=4, keep_dims=True)
 
             with tf.name_scope("Hidden"):
-                self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
-                self.h_bias = bias_variable([3072], "hidden_bias")
                 self.h_hidden= tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
                 #self.training = tf.placeholder("bool", name="training")
                 #(self.h_norm_hidden, self.beta, self.gamma) = standard_batch_norm("hidden", self.h_hidden, 3072, self.training)
@@ -76,9 +86,6 @@ class SupVidMLP2_kitti(TFObj):
                 self.timePooled = tf.reduce_max(self.h_hidden, reduction_indices=1)
                 self.hiddenPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
-                self.conv1_w = tf.Variable(tf.zeros([1, 1, 3072, 3072]), "conv1_w")
-                self.conv1_b = bias_variable([3072], "conv1_b")
-
                 self.h_res = tf.nn.relu(tf.nn.conv2d(self.hiddenPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
                 self.h_conv1 = tf.nn.relu(self.hiddenPooled + self.h_res)
 
@@ -89,9 +96,6 @@ class SupVidMLP2_kitti(TFObj):
             with tf.name_scope("conv2"):
                 yPool = 2
                 xPool = 2
-
-                self.conv2_w = weight_variable_xavier([1, 1, 3072, 3072], "conv2_w")
-                self.conv2_b = bias_variable([3072], "conv2_b" )
 
                 #Pool over spatial dimensions to be 2x2
                 self.h_conv1_pool= tf.nn.max_pool(self.h_dropout1, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
@@ -109,13 +113,10 @@ class SupVidMLP2_kitti(TFObj):
                 self.h_conv2_pool= tf.nn.max_pool(self.h_dropout2, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
                 self.camPooled = tf.nn.max_pool(self.h_dropout2, ksize=[1, yPool, xPool, 1], strides=[1, 1, 1, 1], padding="SAME")
 
-                self.conv3_w = weight_variable_xavier([1, 1, 3072, self.numClasses], "weight")
-                self.conv3_b = bias_variable([self.numClasses], "bias" )
-
-                self.h_conv3 = tf.nn.conv2d(self.h_conv2_pool, self.conv3_w, [1, 1, 1, 1], padding="SAME") + self.conv3_b
+                self.h_conv3 = tf.nn.conv2d(self.h_conv2_pool, self.class_weight, [1, 1, 1, 1], padding="SAME") + self.class_bias
 
                 #We evaluate pooling with smaller stride here
-                self.cam = tf.nn.conv2d(self.camPooled, self.conv3_w, [1, 1, 1, 1], padding="SAME") + self.conv3_b
+                self.cam = tf.nn.conv2d(self.camPooled, self.class_weight, [1, 1, 1, 1], padding="SAME") + self.class_bias
 
                 #Reshape batch and time together
                 #self.reshape_cam = tf.transpose(tf.reshape(self.cam, [self.batchSize*7, 16, 32, 31]), [0, 3, 1, 2])
@@ -148,7 +149,7 @@ class SupVidMLP2_kitti(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                self.weightRegLoss = tf.reduce_sum(tf.square(self.conv3_w)) + tf.reduce_sum(tf.square(self.conv2_w)) + tf.reduce_sum(tf.square(self.conv1_w)) + tf.reduce_sum(tf.square(self.h_weight))
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.class_weight)) + tf.reduce_sum(tf.square(self.conv2_w)) + tf.reduce_sum(tf.square(self.conv1_w)) + tf.reduce_sum(tf.square(self.h_weight))
 
                 self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
 
@@ -160,7 +161,7 @@ class SupVidMLP2_kitti(TFObj):
                             self.h_weight,
                             self.conv1_w,
                             self.conv2_w,
-                            self.conv3_w,
+                            self.class_weight
                         ]
                         )
                 self.optimizerBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
@@ -168,7 +169,7 @@ class SupVidMLP2_kitti(TFObj):
                             self.h_bias,
                             self.conv1_b,
                             self.conv2_b,
-                            self.conv3_b,
+                            self.class_bias
                         ]
                         )
 
@@ -197,15 +198,14 @@ class SupVidMLP2_kitti(TFObj):
         tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
         tf.histogram_summary('conv2_w', self.conv2_w, name="conv2_w_vis")
         tf.histogram_summary('conv2_b', self.conv2_b, name="conv2_b_vis")
-        tf.histogram_summary('conv3_w', self.conv3_w, name="conv3_w_vis")
-        tf.histogram_summary('conv3_b', self.conv3_b, name="conv3_b_vis")
+        tf.histogram_summary('class_weight', self.class_weight, name="class_weight_vis")
+        tf.histogram_summary('class_bias', self.class_bias, name="class_bias_vis")
 
     def getLoadVars(self):
         v = tf.all_variables()
         if(self.resLoad):
             #Load first and 3rd layers
-            v = [var for var in v if ("hidden_weight" in var.name) or ("hidden_bias" in var.name) or ("weight" in var.name) or ("bias" in var.name)]
-
+            v = [var for var in v if ("hidden_weight" in var.name) or ("hidden_bias" in var.name) or ("conv1_w" in var.name) or ("conv1_b" in var.name) or ("class_weight" in var.name) or ("class_bias" in var.name)]
         return v
 
     #Trains model for numSteps
