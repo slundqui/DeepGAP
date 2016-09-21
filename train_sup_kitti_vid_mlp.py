@@ -72,7 +72,7 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8_slp_noreg.ckpt",
     #Device to run on
     'device':          '/gpu:1',

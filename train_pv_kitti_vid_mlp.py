@@ -45,7 +45,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/pv_kitti_vid_4x8_mlp_fromslp_noreg/",
+    'runDir':          "/pv_test/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -59,7 +59,7 @@ params = {
     #Controls how often to write out to tensorboard
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
-    'load':            True,
+    'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_slp_noreg.ckpt",
     #Device to run on
     'device':          '/gpu:0',

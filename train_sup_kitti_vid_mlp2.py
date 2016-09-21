@@ -58,7 +58,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/sup_kitti_vid_4x8_2xmlp_reg/",
+    'runDir':          "/sup_kitti_vid_4x8_2xmlp_noreg/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -73,7 +73,7 @@ params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            False,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8_slp_noreg.ckpt",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8_2xmlp_noreg.ckpt",
     #Device to run on
     'device':          '/gpu:1',
     #####ISTA PARAMS######
@@ -83,7 +83,7 @@ params = {
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
-    'learningRate':    1e-4,
+    'learningRate':    1e-3,
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,
@@ -95,7 +95,7 @@ params = {
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
-    'regWeight': 1e-4,
+    'regWeight': 0,
     'resLoad': False,
 }
 

@@ -136,7 +136,7 @@ class SupVidMLP_kitti(TFObj):
                     recall = classTP/(classTP+classFN+self.epsilon)
                     self.classF1.append((2*precision*recall)/(precision+recall+self.epsilon))
 
-                self.weightRegLoss = tf.reduce_sum(tf.square(self.conv2_w)) + tf.reduce_sum(tf.square(self.conv1_w)) + tf.reduce_sum(tf.square(self.h_weight))
+                self.weightRegLoss = tf.reduce_sum(tf.square(self.class_weight)) + tf.reduce_sum(tf.square(self.conv1_w)) + tf.reduce_sum(tf.square(self.h_weight))
 
                 self.loss = tf.reduce_mean(-tf.reduce_sum(self.lossWeight[0:self.numClasses] * self.select_gt* tf.log(self.est+self.epsilon), reduction_indices=3)) + self.regWeight * self.weightRegLoss
 
@@ -181,7 +181,7 @@ class SupVidMLP_kitti(TFObj):
         tf.histogram_summary('conv1_w', self.conv1_w, name="conv1_w_vis")
         tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
         tf.histogram_summary('class_weight', self.class_weight, name="class_weight_vis")
-        tf.histogram_summary('class_bias', self.conv2_b, name="class_bias_vis")
+        tf.histogram_summary('class_bias', self.class_bias, name="class_bias_vis")
 
     def getLoadVars(self):
         v = tf.all_variables()

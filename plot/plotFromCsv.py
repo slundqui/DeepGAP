@@ -1,48 +1,124 @@
+import matplotlib
+matplotlib.use('Agg')
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 from scipy.signal import exponential
 import pdb
 
-baseDir = "/home/slundquist/mountData/DeepGAP/savedOutDirsKitti/"
-outDir  = "/home/slundquist/mountData/DeepGAP/savedOutDirsKitti/plots/"
+baseDir = "/home/slundquist/mountData/DeepGAP/"
+outDir  = "/home/slundquist/mountData/DeepGAP/boot_plots/"
+
+#baseDir = "/home/slundquist/mountData/DeepGAP/savedOutDirsKitti/"
+#outDir  = "/home/slundquist/mountData/DeepGAP/savedOutDirsKitti/plots/"
+
 leftFiles = [
-        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_accuracy.csv",
-         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_accuracy.csv"),
-        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Car F1.csv",
-         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Car F1.csv"),
-        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Pedestrian F1.csv",
-         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
-        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_distractor F1.csv",
-         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_distractor F1.csv"),
-        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_accuracy.csv",
-         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_accuracy.csv"),
-        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Car F1.csv",
-         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Car F1.csv"),
-        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Pedestrian F1.csv",
-         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
-        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_distractor F1.csv",
-         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_distractor F1.csv"),
+        ("pv_kitti_vid_4x8_boot_1/csv/run_train,tag_accuracy.csv",
+         "pv_kitti_vid_4x8_boot_1/csv/run_test,tag_accuracy.csv"),
+        ("pv_kitti_vid_4x8_boot_1/csv/run_train,tag_Car F1.csv",
+         "pv_kitti_vid_4x8_boot_1/csv/run_test,tag_Car F1.csv"),
+        ("pv_kitti_vid_4x8_boot_1/csv/run_train,tag_Pedestrian F1.csv",
+         "pv_kitti_vid_4x8_boot_1/csv/run_test,tag_Pedestrian F1.csv"),
+        ("pv_kitti_vid_4x8_boot_1/csv/run_train,tag_distractor F1.csv",
+         "pv_kitti_vid_4x8_boot_1/csv/run_test,tag_distractor F1.csv"),
+        ("pv_kitti_vid_4x8_boot_2/csv/run_train,tag_accuracy.csv",
+         "pv_kitti_vid_4x8_boot_2/csv/run_test,tag_accuracy.csv"),
+        ("pv_kitti_vid_4x8_boot_2/csv/run_train,tag_Car F1.csv",
+         "pv_kitti_vid_4x8_boot_2/csv/run_test,tag_Car F1.csv"),
+        ("pv_kitti_vid_4x8_boot_2/csv/run_train,tag_Pedestrian F1.csv",
+         "pv_kitti_vid_4x8_boot_2/csv/run_test,tag_Pedestrian F1.csv"),
+        ("pv_kitti_vid_4x8_boot_2/csv/run_train,tag_distractor F1.csv",
+         "pv_kitti_vid_4x8_boot_2/csv/run_test,tag_distractor F1.csv"),
+        ("pv_kitti_vid_4x8_boot_3/csv/run_train,tag_accuracy.csv",
+         "pv_kitti_vid_4x8_boot_3/csv/run_test,tag_accuracy.csv"),
+        ("pv_kitti_vid_4x8_boot_3/csv/run_train,tag_Car F1.csv",
+         "pv_kitti_vid_4x8_boot_3/csv/run_test,tag_Car F1.csv"),
+        ("pv_kitti_vid_4x8_boot_3/csv/run_train,tag_Pedestrian F1.csv",
+         "pv_kitti_vid_4x8_boot_3/csv/run_test,tag_Pedestrian F1.csv"),
+        ("pv_kitti_vid_4x8_boot_3/csv/run_train,tag_distractor F1.csv",
+         "pv_kitti_vid_4x8_boot_3/csv/run_test,tag_distractor F1.csv"),
         ]
 
 rightFiles = [
-        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_accuracy.csv",
-         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_accuracy.csv"),
-        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Car F1.csv",
-         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Car F1.csv"),
-        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Pedestrian F1.csv",
-         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
-        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_distractor F1.csv",
-         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_distractor F1.csv"),
-        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_accuracy.csv",
-         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_accuracy.csv"),
-        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Car F1.csv",
-         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Car F1.csv"),
-        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Pedestrian F1.csv",
-         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
-        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_distractor F1.csv",
-         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_distractor F1.csv"),
+        ("sup_kitti_vid_4x8_boot_1/csv/run_train,tag_accuracy.csv",
+         "sup_kitti_vid_4x8_boot_1/csv/run_test,tag_accuracy.csv"),
+        ("sup_kitti_vid_4x8_boot_1/csv/run_train,tag_Car F1.csv",
+         "sup_kitti_vid_4x8_boot_1/csv/run_test,tag_Car F1.csv"),
+        ("sup_kitti_vid_4x8_boot_1/csv/run_train,tag_Pedestrian F1.csv",
+         "sup_kitti_vid_4x8_boot_1/csv/run_test,tag_Pedestrian F1.csv"),
+        ("sup_kitti_vid_4x8_boot_1/csv/run_train,tag_distractor F1.csv",
+         "sup_kitti_vid_4x8_boot_1/csv/run_test,tag_distractor F1.csv"),
+        ("sup_kitti_vid_4x8_boot_2/csv/run_train,tag_accuracy.csv",
+         "sup_kitti_vid_4x8_boot_2/csv/run_test,tag_accuracy.csv"),
+        ("sup_kitti_vid_4x8_boot_2/csv/run_train,tag_Car F1.csv",
+         "sup_kitti_vid_4x8_boot_2/csv/run_test,tag_Car F1.csv"),
+        ("sup_kitti_vid_4x8_boot_2/csv/run_train,tag_Pedestrian F1.csv",
+         "sup_kitti_vid_4x8_boot_2/csv/run_test,tag_Pedestrian F1.csv"),
+        ("sup_kitti_vid_4x8_boot_2/csv/run_train,tag_distractor F1.csv",
+         "sup_kitti_vid_4x8_boot_2/csv/run_test,tag_distractor F1.csv"),
+        ("sup_kitti_vid_4x8_boot_3/csv/run_train,tag_accuracy.csv",
+         "sup_kitti_vid_4x8_boot_3/csv/run_test,tag_accuracy.csv"),
+        ("sup_kitti_vid_4x8_boot_3/csv/run_train,tag_Car F1.csv",
+         "sup_kitti_vid_4x8_boot_3/csv/run_test,tag_Car F1.csv"),
+        ("sup_kitti_vid_4x8_boot_3/csv/run_train,tag_Pedestrian F1.csv",
+         "sup_kitti_vid_4x8_boot_3/csv/run_test,tag_Pedestrian F1.csv"),
+        ("sup_kitti_vid_4x8_boot_3/csv/run_train,tag_distractor F1.csv",
+         "sup_kitti_vid_4x8_boot_3/csv/run_test,tag_distractor F1.csv"),
         ]
+
+#leftFiles = [
+#        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_accuracy.csv",
+#         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_accuracy.csv"),
+#        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Car F1.csv",
+#         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Car F1.csv"),
+#        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Pedestrian F1.csv",
+#         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
+#        ("pv_kitti_vid_4x8_slp_noreg/csv/run_train,tag_distractor F1.csv",
+#         "pv_kitti_vid_4x8_slp_noreg/csv/run_test,tag_distractor F1.csv"),
+#        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_accuracy.csv",
+#         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_accuracy.csv"),
+#        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Car F1.csv",
+#         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Car F1.csv"),
+#        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Pedestrian F1.csv",
+#         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
+#        ("pv_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_distractor F1.csv",
+#         "pv_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_distractor F1.csv"),
+#        ("pv_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_accuracy.csv",
+#         "pv_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_accuracy.csv"),
+#        ("pv_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_Car F1.csv",
+#         "pv_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_Car F1.csv"),
+#        ("pv_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_Pedestrian F1.csv",
+#         "pv_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
+#        ("pv_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_distractor F1.csv",
+#         "pv_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_distractor F1.csv"),
+#        ]
+#
+#rightFiles = [
+#        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_accuracy.csv",
+#         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_accuracy.csv"),
+#        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Car F1.csv",
+#         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Car F1.csv"),
+#        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_Pedestrian F1.csv",
+#         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
+#        ("sup_kitti_vid_4x8_slp_noreg/csv/run_train,tag_distractor F1.csv",
+#         "sup_kitti_vid_4x8_slp_noreg/csv/run_test,tag_distractor F1.csv"),
+#        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_accuracy.csv",
+#         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_accuracy.csv"),
+#        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Car F1.csv",
+#         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Car F1.csv"),
+#        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_Pedestrian F1.csv",
+#         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
+#        ("sup_kitti_vid_4x8_mlp_noreg/csv/run_train,tag_distractor F1.csv",
+#         "sup_kitti_vid_4x8_mlp_noreg/csv/run_test,tag_distractor F1.csv"),
+#        ("sup_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_accuracy.csv",
+#         "sup_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_accuracy.csv"),
+#        ("sup_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_Car F1.csv",
+#         "sup_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_Car F1.csv"),
+#        ("sup_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_Pedestrian F1.csv",
+#         "sup_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_Pedestrian F1.csv"),
+#        ("sup_kitti_vid_4x8_2xmlp_noreg/csv/run_train,tag_distractor F1.csv",
+#         "sup_kitti_vid_4x8_2xmlp_noreg/csv/run_test,tag_distractor F1.csv"),
+#        ]
 
 leftLabel = "Sparse Coding"
 rightLabel = "Supervised"
@@ -56,6 +132,10 @@ plotTitles = [
         "3 Layer Car F1",
         "3 Layer Pedestrian F1",
         "3 Layer Distractor F1",
+        "4 Layer Accuracy",
+        "4 Layer Car F1",
+        "4 Layer Pedestrian F1",
+        "4 Layer Distractor F1",
         ]
 
 def readCsv(filename):
@@ -82,7 +162,7 @@ def expSmooth(*arg):
         y = a[:, 1]
         numData = x.shape[0]
         #Find dt
-        dt = x[1]-x[0]
+        dt = x[2]-x[1]
         alpha = float(dt)/tau
         expVal = np.zeros(a.shape)
         expVal[:, 0] = x

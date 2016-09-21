@@ -28,17 +28,18 @@ class MLPVid2(TFObj):
 
     def defineVars(self):
         #Define all variables outside of scope
+        self.conv1_w = weight_variable_xavier([1, 1, 3072, 3072], "conv1_w")
+        self.conv1_b = bias_variable([3072], "conv1_b")
+        self.conv2_w = weight_variable_xavier([1, 1, 3072, 3072], "conv2_w")
+        self.conv2_b = bias_variable([3072], "conv2_b" )
         self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias")
-        self.conv1_w = weight_variable_xavier([1, 1, inputShape[3], 3072], "conv1_w")
-        self.conv1_b = bias_variable([3072], "conv1_b")
-        self.conv2_w = weight_variable_xavier([1, 1, inputShape[3], inputShape[3]], "conv2_w")
-        self.conv2_b = bias_variable([3072], "conv2_b" )
 
     #Builds the model. inMatFilename should be the vgg file
     def buildModel(self, inputShape):
         #Running on GPU
         with tf.device(self.device):
+            self.defineVars()
             with tf.name_scope("inputOps"):
                 #self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]], "inputImage")
                 #self.gt = node_variable([self.batchSize, 1, 8, 16, self.numClasses], "gt")
@@ -189,8 +190,8 @@ class MLPVid2(TFObj):
         tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
         tf.histogram_summary('conv2_w', self.conv2_w, name="conv2_w_vis")
         tf.histogram_summary('conv2_b', self.conv2_b, name="conv2_b_vis")
-        tf.histogram_summary('conv3_w', self.class_weight, name="conv3_w_vis")
-        tf.histogram_summary('conv3_b', self.class_bias, name="conv3_b_vis")
+        tf.histogram_summary('class_weight', self.class_weight, name="conv3_w_vis")
+        tf.histogram_summary('class_bias', self.class_bias, name="conv3_b_vis")
 
 
     def getLoadVars(self):

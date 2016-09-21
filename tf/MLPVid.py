@@ -30,7 +30,7 @@ class MLPVid(TFObj):
         #Define all variables outside of scope
         self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias")
-        self.conv1_w = weight_variable_xavier([1, 1, inputShape[3], 3072], "conv1_w")
+        self.conv1_w = weight_variable_xavier([1, 1, 3072, 3072], "conv1_w")
         self.conv1_b = bias_variable([3072], "conv1_b")
 
     #Builds the model. inMatFilename should be the vgg file

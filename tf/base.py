@@ -118,6 +118,7 @@ class TFObj(object):
 
     def closeSess(self):
         self.sess.close()
+        tf.reset_default_graph()
 
     #Trains model for numSteps
     #If pre is False, will train entire network
