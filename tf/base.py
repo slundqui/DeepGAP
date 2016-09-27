@@ -5,6 +5,7 @@ from loadVgg import loadWeights
 from utils import *
 import os
 from plot.viewCam import plotDetCam
+import scipy.sparse as sp
 #import matplotlib.pyplot as plt
 
 class TFObj(object):
@@ -17,8 +18,11 @@ class TFObj(object):
         self.loadParams(params)
         self.makeDirs()
 
+        #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpuPercent)
+        #config = tf.ConfigProto(gpu_options=gpu_options)
         config = tf.ConfigProto()
-        #config.gpu_options.allow_growth=True
+
+        config.gpu_options.allow_growth=True
         config.allow_soft_placement=True
         self.sess = tf.Session(config=config)
         self.buildModel(inputShape)
@@ -43,6 +47,7 @@ class TFObj(object):
         self.writeStep = params['writeStep']
 
         self.device = params['device']
+        #self.gpuPercent = params['gpuPercent']
         self.batchSize = params['batchSize']
         self.learningRate = params['learningRate']
         self.numClasses = params['numClasses']
@@ -158,55 +163,65 @@ class TFObj(object):
 
         return outVals
 
-    ##Evaluates inData, but in batchSize batches for memory efficiency
-    ##If an inGt is provided, will calculate summary as test set
-    #def evalModelBatch(self, inData, inGt=None):
-    #    (numData, ny, nx, nf) = inData.shape
-    #    if(inGt != None):
-    #        (numGt, drop) = inGt.shape
-    #        assert(numData == numGt)
+    #Evaluates inData, but in batchSize batches for memory efficiency
+    #If an inGt is provided, will calculate summary as test set
+    def evalModelBatch(self, testDataObj):
+        numData = len(testDataObj.shuffleIdx)
+        #Ceil of numData/batchSize
+        numIt = int(np.ceil(float(numData)/self.batchSize))
+        gtShape = testDataObj.gtShape
+        numTiles = 1
+        #last index of gtshape is gt
+        for dim in gtShape[:-1]:
+            numTiles *= dim
 
-    #    #Split up numData into batchSize and evaluate est data
-    #    tfInVals = np.zeros((self.batchSize, ny, nx, nf))
-    #    outData = np.zeros((numData, 1))
+        outGt = np.zeros((numData * numTiles))
+        outEst = np.zeros((numData * numTiles))
 
-    #    #Ceil of numData/batchSize
-    #    numIt = int(numData/self.batchSize) + 1
+        startDataOffset = 0
+        for it in range(numIt):
+            print it, " out of ", numIt
 
-    #    #Only write summary on first it
+            #Calculate indices
+            endDataOffset = startDataOffset + self.batchSize
 
-    #    startOffset = 0
-    #    for it in range(numIt):
-    #        print it, " out of ", numIt
-    #        #Calculate indices
-    #        startDataIdx = startOffset
-    #        endDataIdx = startOffset + self.batchSize
-    #        startTfValIdx = 0
-    #        endTfValIdx = self.batchSize
+            startDataTfIdx = 0
+            endDataTfIdx = self.batchSize
 
-    #        #If out of bounds
-    #        if(endDataIdx >= numData):
-    #            #Calculate offset
-    #            offset = endDataIdx - numData
-    #            #Set endDataIdx to max value
-    #            endDataIdx = numData
-    #            #Set endTfValIdx to less than max value
-    #            endTfValIdx -= offset
+            startGtIdx = startDataOffset * numTiles
+            endGtIdx = startGtIdx + self.batchSize * numTiles
 
-    #        tfInVals[startTfValIdx:endTfValIdx, :, :, :] = inData[startDataIdx:endDataIdx, :, :, :]
-    #        feedDict = {self.inputImage: tfInVals}
-    #        tfOutVals = self.est.eval(feed_dict=feedDict, session=self.sess)
-    #        outData[startDataIdx:endDataIdx, :] = tfOutVals[startTfValIdx:endTfValIdx, :]
 
-    #        if(inGt != None and it == 0):
-    #            tfInGt = inGt[startDataIdx:endDataIdx, :]
-    #            summary = self.sess.run(self.mergedSummary, feed_dict={self.inputImage: tfInVals, self.gt: tfInGt})
-    #            self.test_writer.add_summary(summary, self.timestep)
+            #If out of bounds
+            if(endDataOffset >= numData):
+                #Calculate offset
+                offsetData = endDataOffset - numData
+                #Set endDataIdx to max value
+                endGtIdx = numData*numTiles
+                #Set endTfValIdx to less than max value
+                endDataTfIdx -= offsetData
 
-    #        startOffset += self.batchSize
+            (inData, inGt, drop) = testDataObj.getData(self.batchSize)
+            #TODO
+            #assert(sp.issparse(inData))
+            assert(not sp.issparse(inGt))
+            gtVals = np.argmax(inGt, axis=inGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
+            outGt[startGtIdx:endGtIdx] = gtVals
+            #Eval data
+            estGt = self.evalModel(inData, None, None, None, False)
+            #Find winner
+            estVals = np.argmax(estGt, axis=estGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
+            outEst[startGtIdx:endGtIdx] = estVals
 
-    #    #Return output data
-    #    return outData
+            startDataOffset += self.batchSize
+
+        fn = self.runDir + "evalGtIdxs.npy"
+        np.save(fn, outGt)
+        fn = self.runDir + "evalEstIdxs.npy"
+        np.save(fn, outEst)
+
+        #Return output data
+        return (outGt, outEst)
 
 
     #Loads a tf checkpoint
