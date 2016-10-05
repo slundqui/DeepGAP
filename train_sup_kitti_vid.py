@@ -30,8 +30,8 @@ dncFilenames= [
 
 #trainFnPrefix = "/shared/KITTI/objdet/training/"
 
-trainRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_train_list.txt"
-testRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_test_list.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list.txt"
+testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
 trainLines = trainf.readlines()
@@ -68,7 +68,7 @@ params = {
     'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8.ckpt",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      1000000, #1000000,

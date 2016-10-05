@@ -75,7 +75,8 @@ params = {
     'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_vid_4x8_2xmlp_noreg.ckpt",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
+    #'gpuPercent':      .333,
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      1000000, #1000000,
@@ -83,7 +84,7 @@ params = {
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
-    'learningRate':    1e-3,
+    'learningRate':    1e-4,
     'beta1' :          .9,
     'beta2' :          .999,
     'epsilon':         1e-8,

@@ -22,8 +22,8 @@ dncFilenames= [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
 
-trainRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_train_list.txt"
-testRangeFn = "/shared/KITTI/objdet/training/genData/kitti_objdet_test_list.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list.txt"
+testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
 trainLines = trainf.readlines()

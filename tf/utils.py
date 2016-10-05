@@ -43,14 +43,14 @@ def smoothL1(inNode):
 def pixelSoftmax(inNode):
     exp = tf.exp(inNode - tf.reduce_max(inNode, reduction_indices=3, keep_dims=True))
     #Calculate sum across feature dimension
-    norm = tf.reduce_sum(exp, reduction_indices=3, keep_dims=True)
-    return tf.div(exp, norm)
+    norm = tf.reduce_sum(exp, reduction_indices=3, keep_dims=True) + 1e-8
+    return tf.truediv(exp, norm)
 
 def pixelSoftmax5d(inNode):
     exp = tf.exp(inNode - tf.reduce_max(inNode, reduction_indices=4, keep_dims=True))
     #Calculate sum across feature dimension
-    norm = tf.reduce_sum(exp, reduction_indices=4, keep_dims=True)
-    return tf.div(exp, norm)
+    norm = tf.reduce_sum(exp, reduction_indices=4, keep_dims=True) + 1e-8
+    return tf.truediv(exp, norm)
 
 def convertToSparse5d(m):
     [nb, nt, ny, nx, nf] = m.shape
