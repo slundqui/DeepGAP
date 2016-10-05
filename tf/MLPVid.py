@@ -64,7 +64,7 @@ class MLPVid(TFObj):
                             tf.transpose(self.gtIndices, [1, 0]),
                             self.gtValues,
                             [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.numClasses]
-                            )
+                            ),
                             validate_indices=False)
                     self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.numClasses])
                 else:
