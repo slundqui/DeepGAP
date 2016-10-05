@@ -22,7 +22,7 @@ class TFObj(object):
         #config = tf.ConfigProto(gpu_options=gpu_options)
         config = tf.ConfigProto()
 
-        config.gpu_options.allow_growth=True
+        #config.gpu_options.allow_growth=True
         config.allow_soft_placement=True
         self.sess = tf.Session(config=config)
         self.buildModel(inputShape)

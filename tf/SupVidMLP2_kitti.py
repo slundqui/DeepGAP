@@ -30,10 +30,10 @@ class SupVidMLP2_kitti(TFObj):
         #Define all variables outside of scope
         self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
         self.h_bias = bias_variable([3072], "hidden_bias")
-        self.conv1_w = weight_variable_xavier([1, 1, 3072, 3072], "conv1_w")
-        self.conv1_b = bias_variable([3072], "conv1_b")
-        self.conv2_w = weight_variable_xavier([1, 1, 3072, 3072], "conv2_w")
-        self.conv2_b = bias_variable([3072], "conv2_b" )
+        self.conv1_w = bias_variable([1, 1, 3072, 3072], "conv1_w", 0)
+        self.conv1_b = bias_variable([3072], "conv1_b", 0)
+        self.conv2_w = bias_variable([1, 1, 3072, 3072], "conv2_w", 0)
+        self.conv2_b = bias_variable([3072], "conv2_b", 0)
         self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias" )
 
@@ -63,12 +63,12 @@ class SupVidMLP2_kitti(TFObj):
                     self.pre_gt = tf.sparse_tensor_to_dense(tf.SparseTensor(
                             tf.transpose(self.gtIndices, [1, 0]),
                             self.gtValues,
-                            [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.gtShape[3]]),
+                            [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.numClasses]),
                             validate_indices=False
                             )
-                    self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
+                    self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.numClasses])
                 else:
-                    self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
+                    self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.numClasses])
 
                 self.select_gt = tf.squeeze(self.gt[:, :, :, :, 0:self.numClasses], squeeze_dims=[1])
 
@@ -173,7 +173,8 @@ class SupVidMLP2_kitti(TFObj):
                         ]
                         )
 
-        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=5)
+        numK = min(5, self.numClasses)
+        (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=numK)
 
         #Summaries
         tf.scalar_summary('loss', self.loss, name="accuracy")

@@ -162,7 +162,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                     continue
 
                 if(gt is not None):
-                    if(camIdx < 5):
+                    if(camIdx < numCam):
                         gtImg = gt[b, :, :, idxs[b, camIdx]]
                         resizeGT = zoom(gtImg, [yFactorGt, xFactorGt])
                         axarr[y, x].imshow(norm_image)
@@ -173,7 +173,7 @@ def plotDetCam(outPrefix, inImage, gt, cam, idxs, vals, idxToName, distIdx = -1)
                         axarr[y, x].set_title(strLabel+ " gt", fontsize=fontsize)
 
                     else:
-                        camIdx = camIdx - 5
+                        camIdx = camIdx - numCam
                         if(camIdx < numCam):
                             camImg = sortedCam[camIdx, :, :]
 

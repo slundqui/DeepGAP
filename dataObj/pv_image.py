@@ -262,8 +262,10 @@ class imageNetVidPvObj(pvObj):
 
 
 class kittiVidPvObj(pvObj):
-    def __init__(self, trainInputs, trainGts, trainFilenames, dncFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, rangeIdx=None):
+    def __init__(self, trainInputs, trainGts, trainFilenames, dncFilenames, fnPrefix, resizeMethod="crop", shuffle=True, skip=1, seed=None, getGT=True, rangeIdx=None, binClass=None):
         super(kittiVidPvObj, self).__init__(trainInputs, trainGts, trainFilenames, fnPrefix, resizeMethod, shuffle, skip, seed, getGT, rangeIdx)
+
+        self.binClass = binClass
 
         inHeader = self.inputFiles[0].header
         gtHeader =  self.gtFiles[0].header
@@ -291,12 +293,15 @@ class kittiVidPvObj(pvObj):
         self.innerGtShape = (gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
         self.innerDncShape = (dncHeader['ny'], dncHeader['nx'], dncHeader['nf'])
 
-        self.inputShape = (self.numInputs, inHeader['ny'], inHeader['nx'], inHeader['nf'])
-        self.gtShape = (self.numGt, gtHeader['ny'], gtHeader['nx'], gtHeader['nf'])
+        self.inputShape = (self.numInputs,) + self.innerInputShape
+        self.gtShape = (self.numGt,) + self.innerGtShape
         self.imageShape  = (self.numImgsTime,) + self.innerImageShape
         self.dncShape = (self.numDnc,) + self.innerDncShape
-        self.numClasses = self.gtShape[3]
 
+        if(self.binClass is None):
+            self.numClasses = gtHeader['nf']
+        else:
+            self.numClasses = 2
 
         self.idxToName = [
                 "distractor",
@@ -309,7 +314,6 @@ class kittiVidPvObj(pvObj):
                 "Tram",
                 "Misc",
                 ]
-
 
         self.lossWeight= [
                 0.32837274,
@@ -348,6 +352,23 @@ class kittiVidPvObj(pvObj):
                 dncOut[i] = f.read(0, 1)["values"][0, :, :, :]
 
         return dncOut
+
+    def getData(self, numExample):
+        out = super(kittiVidPvObj, self).getData(numExample)
+        if(self.binClass is None):
+            return out
+
+        if(self.getGT):
+            newGt = np.zeros((numExample, self.gtShape[0], self.gtShape[1], self.gtShape[2], 2))
+            (outData, outGt, outImg) = out
+            numAllClasses = self.gtShape[3]
+            classGt = outGt[:, :, :, :, self.binClass]
+            newGt[:, :, :, :, 1] = classGt.max(4)
+            #Set distractor class to be oposite of target class
+            newGt[:, :, :, :, 0] = 1 - newGt[:, :, :, :, 1]
+            return (outData, newGt, outImg)
+        else:
+            return out
 
 class imageNetVidSupObj(imageObj):
     #TODO fix this object to reduce copied code
