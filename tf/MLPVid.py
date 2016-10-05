@@ -50,7 +50,9 @@ class MLPVid(TFObj):
                         tf.transpose(self.dataIndices, [1, 0]),
                         self.dataValues,
                         [self.batchSize*inputShape[0], inputShape[1]*inputShape[2]*inputShape[3]]
-                        ))
+                        ),
+                        validate_indices=False
+                        )
 
                 self.inputImage = self.inputScale * tf.reshape(self.pre_inputImage, [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
 
@@ -62,7 +64,8 @@ class MLPVid(TFObj):
                             tf.transpose(self.gtIndices, [1, 0]),
                             self.gtValues,
                             [self.batchSize*self.gtShape[0], self.gtShape[1]*self.gtShape[2]*self.gtShape[3]]
-                            ))
+                            ),
+                            validate_indices=False)
                     self.gt = tf.reshape(self.pre_gt, [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
                 else:
                     self.gt=tf.placeholder("float32", [self.batchSize, self.gtShape[0], self.gtShape[1], self.gtShape[2], self.gtShape[3]])
