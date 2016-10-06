@@ -30,10 +30,10 @@ class SupVidMLP2_kitti(TFObj):
         #Define all variables outside of scope
         self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
         self.h_bias = bias_variable([3072], "hidden_bias")
-        self.conv1_w = bias_variable([1, 1, 3072, 3072], "conv1_w", 0)
-        self.conv1_b = bias_variable([3072], "conv1_b", 0)
-        self.conv2_w = bias_variable([1, 1, 3072, 3072], "conv2_w", 0)
-        self.conv2_b = bias_variable([3072], "conv2_b", 0)
+        self.conv1_w = weight_variable([1, 1, 3072, 3072], "conv1_w", 1e-6)
+        self.conv1_b = weight_variable([3072], "conv1_b", 1e-6)
+        self.conv2_w = weight_variable([1, 1, 3072, 3072], "conv2_w", 1e-6)
+        self.conv2_b = weight_variable([3072], "conv2_b", 1e-6)
         self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias" )
 
@@ -87,7 +87,7 @@ class SupVidMLP2_kitti(TFObj):
                 self.hiddenPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
                 self.h_res = tf.nn.relu(tf.nn.conv2d(self.hiddenPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
-                self.h_conv1 = tf.nn.relu(self.hiddenPooled + self.h_res)
+                self.h_conv1 = self.hiddenPooled + self.h_res
 
             with tf.name_scope("reg1"):
                 self.keep_prob = tf.placeholder(tf.float32)
@@ -101,7 +101,7 @@ class SupVidMLP2_kitti(TFObj):
                 self.h_conv1_pool= tf.nn.max_pool(self.h_dropout1, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
                 self.h_res2 = tf.nn.relu(tf.nn.conv2d(self.h_conv1_pool, self.conv2_w, [1, 1, 1, 1], padding="SAME") + self.conv2_b)
-                self.h_conv2 = tf.nn.relu(self.h_conv1_pool + self.h_res2)
+                self.h_conv2 = self.h_conv1_pool + self.h_res2
 
             with tf.name_scope("reg2"):
                 self.h_dropout2 = tf.nn.dropout(self.h_conv2, self.keep_prob)
