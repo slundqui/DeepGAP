@@ -8,12 +8,16 @@ from scipy.misc import imresize
 from PIL import Image
 
 class kittiDetBBObj(imageObj):
-    numClasses = 8
 
-    def __init__(self, imgList, imgPrefix, gtPrefix, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True):
+    def __init__(self, imgList, imgPrefix, gtPrefix, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True, self.binClass=None):
 
         #Call superclass constructor
         super(kittiDetBBObj, self).__init__(imgList, resizeMethod, normStd, shuffle, skip, seed, augument=False , getGT=getGT)
+        self.binClass = binClass
+        if(self.binClass is None):
+            self.numClasses = 8
+        else:
+            self.numClasses = 2
 
         #Class 200 is the distractor class
         self.gtShape = None
@@ -147,6 +151,11 @@ class kittiDetBBObj(imageObj):
             #Dont care region
             if(gtIdx == -1):
                 continue
+            #We only return the obj
+            if(self.binClass is not None):
+                if(gtIdx not in self.binClass):
+                    continue
+
             xmin = int(np.round(float(split[4])))
             ymin = int(np.round(float(split[5])))
             xmax = int(np.round(float(split[6])))
