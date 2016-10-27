@@ -31,17 +31,16 @@ trainGTPrefix = "/shared/KITTI/objdet/training/label_2/"
 windowSize=[
             (8, 8)  , (8, 16) , (16, 8) ,
             (16, 16), (32, 16), (16, 32),
-            (32, 32), (64, 32), (32, 64),
-            (64, 64), (64, 128),
+            (32, 32), (64, 32), (32, 64)
            ]
 iouThresh = .7
 
 imageBatch = 256
 gtShape = (16, 64)
-outPrefix = "/home/slundquist/mountData/kitti_iou_obj/kitti_iou"
+outPrefix = "/home/slundquist/mountData/kitti_iou_obj/kitti_iou_bin"
 
 #Get object from which tensorflow will pull data from
-trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567)
+trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567, binClass=[1, 2, 3])
 #testDataObj = imageNetDetBBObj(testImageList, testImagePrefix, testGTPrefix, clsMeta, resizeMethod="crop", normStd=False, shuffle=False)
 
 bb_mask(windowSize, gtShape, trainDataObj.inputShape, outPrefix)
