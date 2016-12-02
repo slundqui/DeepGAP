@@ -172,6 +172,22 @@ class SupVidMLP2_kitti(TFObj):
                             self.class_bias
                         ]
                         )
+                self.optimizerPre = tf.train.AdamOptimizer(self.learningRate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon).minimize(self.loss,
+                        var_list=[
+                            #self.h_weight,
+                            self.conv1_w,
+                            self.conv2_w,
+                            self.class_weight
+                        ]
+                        )
+                self.optimizerPreBias = tf.train.GradientDescentOptimizer(self.learningRateBias).minimize(self.loss,
+                        var_list=[
+                            #self.h_bias,
+                            self.conv1_b,
+                            self.conv2_b,
+                            self.class_bias
+                        ]
+                        )
 
         numK = min(5, self.numClasses)
         (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=numK)

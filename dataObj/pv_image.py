@@ -66,6 +66,8 @@ class pvObj(imageObj):
             self.shuffleIdx = rangeIdx
 
         self.numData = len(self.shuffleIdx)
+        self.numImages = self.numData
+
         self.doShuffle = shuffle
         self.skip = skip
         self.getGT = getGT
