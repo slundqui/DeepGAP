@@ -205,12 +205,17 @@ class TFObj(object):
             #TODO
             #assert(sp.issparse(inData))
             assert(not sp.issparse(inGt))
-            gtVals = np.argmax(inGt, axis=inGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
+
+            #TODO fix this to be more general
+            #gtVals = np.argmax(inGt, axis=inGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
+            gtVals = inGt[startDataTfIdx:endDataTfIdx, :, :, :, 1].flatten()
             outGt[startGtIdx:endGtIdx] = gtVals
+
             #Eval data
             estGt = self.evalModel(inData, None, None, None, False)
-            #Find winner
-            estVals = np.argmax(estGt, axis=estGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
+            #TODO fix this to be more general
+            #estVals = np.argmax(estGt, axis=estGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
+            estVals = estGt[startDataTfIdx:endDataTfIdx, :, :, 1].flatten()
             outEst[startGtIdx:endGtIdx] = estVals
 
             startDataOffset += self.batchSize
