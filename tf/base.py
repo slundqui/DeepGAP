@@ -208,7 +208,7 @@ class TFObj(object):
 
             #TODO fix this to be more general
             #gtVals = np.argmax(inGt, axis=inGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
-            gtVals = inGt[startDataTfIdx:endDataTfIdx, :, :, 1].flatten()
+            gtVals = inGt[startDataTfIdx:endDataTfIdx, :, :, :, 1].flatten()
             outGt[startGtIdx:endGtIdx] = gtVals
 
             #Eval data
