@@ -147,7 +147,7 @@ class TFObj(object):
 
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set
-    def evalModel(self, inData, inGt = None, plot=True):
+    def evalModel(self, inData, inGt = None, inImage = None, gtShape=None, plot=True):
         (numData, ny, nx, nf) = inData.shape
         if(inGt != None):
             numGt = inGt.shape[0]
@@ -208,14 +208,14 @@ class TFObj(object):
 
             #TODO fix this to be more general
             #gtVals = np.argmax(inGt, axis=inGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
-            gtVals = inGt[startDataTfIdx:endDataTfIdx, :, :, :, 1].flatten()
+            gtVals = inGt[startDataTfIdx:endDataTfIdx, :, :, 1].flatten()
             outGt[startGtIdx:endGtIdx] = gtVals
 
             #Eval data
-            estGt = self.evalModel(inData, None, None, None, False)
+            est = self.evalModel(inData, None, None, None, False)
             #TODO fix this to be more general
             #estVals = np.argmax(estGt, axis=estGt.ndim-1)[startDataTfIdx:endDataTfIdx].flatten()
-            estVals = estGt[startDataTfIdx:endDataTfIdx, :, :, 1].flatten()
+            estVals = est[startDataTfIdx:endDataTfIdx, :, :, 1].flatten()
             outEst[startGtIdx:endGtIdx] = estVals
 
             startDataOffset += self.batchSize
