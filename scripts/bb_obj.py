@@ -109,10 +109,10 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIo
                     #We take the max IOU as the new iou
                     iouHit = np.nonzero(bbWindowIOU >= iouThresh)
                     newIOU = bbWindowIOU[iouHit]
-                    oldIOU = outBBObj[iouHit, 0]
+                    oldIOU = outBBObj[iouHit[0], iouHit[1], iouHit[2], 0]
                     replaceHits = np.array(newIOU > oldIOU)
                     if(len(replaceHits) > 0):
-                        outBBObj[iouHit, 0] = np.where(replaceHits, newIOU, oldIOU)
+                        outBBObj[iouHit[0], iouHit[1], iouHit[2], 0] = np.where(replaceHits, newIOU, oldIOU)
 
                         newLabels = np.array(allBB[windowIdx])
                         oldLabels = outBBLabel[iouHit]

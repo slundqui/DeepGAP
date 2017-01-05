@@ -11,13 +11,14 @@ class kittiDetBBObj(imageObj):
 
     def __init__(self, imgList, imgPrefix, gtPrefix, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True, binClass=None):
 
-        #Call superclass constructor
-        super(kittiDetBBObj, self).__init__(imgList, resizeMethod, normStd, shuffle, skip, seed, augument=False , getGT=getGT)
         self.binClass = binClass
         if(self.binClass is None):
             self.numClasses = 8
         else:
             self.numClasses = 2
+
+        #Call superclass constructor
+        super(kittiDetBBObj, self).__init__(imgList, resizeMethod, normStd, shuffle, skip, seed, augument=False , getGT=getGT)
 
         #Class 200 is the distractor class
         self.gtShape = None

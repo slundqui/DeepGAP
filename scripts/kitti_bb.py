@@ -34,15 +34,16 @@ windowSize=[
             (32, 32), (64, 32), (32, 64)
            ]
 iouThresh = .7
+minIouThresh = .3
 
 imageBatch = 256
 gtShape = (16, 64)
-outPrefix = "/home/slundquist/mountData/kitti_iou_obj/kitti_iou_bin"
+outPrefix = "/home/slundquist/mountData/kitti_iou_bin_obj/kitti_iou_bin"
 
 #Get object from which tensorflow will pull data from
 trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567, binClass=[1, 2, 3])
 #testDataObj = imageNetDetBBObj(testImageList, testImagePrefix, testGTPrefix, clsMeta, resizeMethod="crop", normStd=False, shuffle=False)
 
 bb_mask(windowSize, gtShape, trainDataObj.inputShape, outPrefix)
-bb_obj(trainDataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh)
+bb_obj(trainDataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIouThresh, device="/cpu:0")
 
