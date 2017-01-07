@@ -41,7 +41,7 @@ gtShape = (16, 64)
 outPrefix = "/home/slundquist/mountData/kitti_iou_bin_obj/kitti_iou_bin"
 
 #Get object from which tensorflow will pull data from
-trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567, binClass=[1, 2, 3])
+trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, resizeMethod="crop", normStd=False, shuffle=False, seed=1234567, binClass=[0, 1, 2])
 #testDataObj = imageNetDetBBObj(testImageList, testImagePrefix, testGTPrefix, clsMeta, resizeMethod="crop", normStd=False, shuffle=False)
 
 bb_mask(windowSize, gtShape, trainDataObj.inputShape, outPrefix)
