@@ -2,7 +2,6 @@ import pdb
 from pvtools import *
 import numpy as np
 
-
 def bb_mask(windowSize, gtShape, imageShape, outPrefix):
     numWindows = len(windowSize)
 
@@ -30,3 +29,31 @@ def bb_mask(windowSize, gtShape, imageShape, outPrefix):
     outFn = outPrefix + "_mask.pvp"
     data = {"values":mask, "time":[0]}
     writepvpfile(outFn, data)
+
+    #anchor shapes are stored as (ymin, ymax, xmin, xmax)
+    anchorShape = (gtShape[0], gtShape[1], len(windowSize), 4)
+    anchor = np.zeros((1,) + anchorShape)
+    for i, window in enumerate(windowSize):
+        for y in range(gtShape[0]):
+            #Translate gt space to image space
+            yImg = y*strideY
+            #Find anchor bb
+            yMargin = window[0]/2
+            yMin = yImg-yMargin
+            yMax = yMin+window[0]
+            for x in range(gtShape[1]):
+                xImg = x*strideX
+                xMargin = window[1]/2
+                xMin = xImg-xMargin
+                xMax = xImg+window[1]
+                anchor[0, y, x, i, :] = [yMin, yMax, xMin, xMax]
+    #Reshape anchor to combine window and shape dimensions
+    anchor = np.reshape(anchor, [1, gtShape[0], gtShape[1], len(windowSize)*4])
+    outFn = outPrefix + "_anchor.pvp"
+    data = {"values":anchor, "time":[0]}
+    writepvpfile(outFn, data)
+
+
+
+
+
