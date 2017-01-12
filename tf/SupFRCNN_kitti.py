@@ -97,8 +97,9 @@ class FRCNN(TFObj):
 
                 self.gtTy = (absoluteBB[:, :, :, :, 0]-absoluteAnchor[:, :, :, :, 0])/(absoluteAnchorH + 1e-6)
                 self.gtTx = (absoluteBB[:, :, :, :, 2]-absoluteAnchor[:, :, :, :, 2])/(absoluteAnchorW + 1e-6)
-                self.gtTh = tf.log((absoluteBB[:, :, :, :, 1] - absoluteBB[:, :, :, :, 0])/(absoluteAnchorH + 1e-6))
-                self.gtTw = tf.log((absoluteBB[:, :, :, :, 3] - absoluteBB[:, :, :, :, 2])/(absoluteAnchorW + 1e-6))
+
+                self.gtTh = tf.log(((absoluteBB[:, :, :, :, 1] - absoluteBB[:, :, :, :, 0])/(absoluteAnchorH + 1e-6))+1e-6)
+                self.gtTw = tf.log(((absoluteBB[:, :, :, :, 3] - absoluteBB[:, :, :, :, 2])/(absoluteAnchorW + 1e-6))+1e-6)
 
                 self.relBbGt = tf.pack([self.gtTy, self.gtTx, self.gtTh, self.gtTw], 4)
 
@@ -187,7 +188,7 @@ class FRCNN(TFObj):
         tf.histogram_summary('fc_reg_bias', self.fc_reg_bias, name="vis_fc_reg_bias")
 
     def getLoadVars(self):
-        v = tf.all_variables()
+        v = tf.global_variables()
         #return [var for var in v if (not "gap" in var.name) and (not "GAP" in var.name) ]
         return v
 

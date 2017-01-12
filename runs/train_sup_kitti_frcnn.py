@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
 from dataObj.pv_image import kittiVidPvObj
-from tf.FRCNN import FRCNN
+from tf.SupFRCNN_kitti import FRCNN
 import numpy as np
 import pdb
 

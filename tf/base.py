@@ -113,7 +113,7 @@ class TFObj(object):
 
     #Initializes session.
     def initSess(self):
-        self.sess.run(tf.initialize_all_variables())
+        self.sess.run(tf.global_variables_initializer())
 
     #Allocates and specifies the output directory for tensorboard summaries
     def writeSummary(self):
