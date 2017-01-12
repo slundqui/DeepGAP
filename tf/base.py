@@ -74,8 +74,8 @@ class TFObj(object):
                plot = False
            if(testDataObj):
                #Evaluate test frame, providing gt so that it writes to summary
-               (evalData, gtData) = testDataObj.getData(self.batchSize)
-               self.evalModel(evalData, gtData, plot=plot)
+               data = testDataObj.getData(self.batchSize)
+               self.evalModel(data[0], data[1], plot=plot)
                print "Done test eval"
            #Train
            if(i%self.savePeriod == 0):

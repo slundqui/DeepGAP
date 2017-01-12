@@ -38,7 +38,7 @@ def smoothL1(inNode):
     absV = tf.abs(inNode)
     LTvalue = 0.5 * tf.square(inNode)
     Evalue = absV - .5
-    return tf.select(tf.absV < 1, LTvalue, Evalue)
+    return tf.select(absV < 1, LTvalue, Evalue)
 
 def pixelSoftmax(inNode):
     exp = tf.exp(inNode - tf.reduce_max(inNode, reduction_indices=3, keep_dims=True))

@@ -49,8 +49,8 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIo
     numWindowSize = len(windowSize)
 
     #Our output is 2 sparse arrays,
-    #One is (numImage, windows, gtShape[0], gtShape[1]) binary file that cooresponds to obj or no obj
-    #Second is (numImage, windows, gtShape[0], gtShape[1], 5) that cooresponds to (id, t, l, h, w) of bb
+    #One is (numImage, gtShape[0], gtShape[1], windows, numClass) binary file that cooresponds to obj or no obj
+    #Second is (numImage, gtShape[0], gtShape[1], windows, 5) that cooresponds to (id, ymin, ymax, xmin, xmax) of bb
 
     with tf.Session() as sess1:
         sess1.run(init)

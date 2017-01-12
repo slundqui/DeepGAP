@@ -40,7 +40,6 @@ class pvObj(imageObj):
         else:
             self.dataSparse = True
 
-
         for imageFn in trainFilenames:
             if(imageFn[-4:] == ".txt"):
                 self.imgPvp.append(False)
@@ -114,16 +113,16 @@ class pvObj(imageObj):
                 dataOut[i] = f.read(startIdx, startIdx+1)["values"][0, :, :, :]
 
         if(self.getGT):
+            gtOut = []
             if(self.gtSparse):
-                gtOut = []
                 for i, f in enumerate(self.gtFiles):
                     out = f.read(startIdx, startIdx+1)["values"]
                     gtOut.append(out)
-                gtOut = vstack(gtOut, format="csr")
+                #gtOut = vstack(gtOut, format="csr")
             else:
-                gtOut = np.zeros(self.gtShape)
+                #gtOut = np.zeros(self.gtShape)
                 for i, f in enumerate(self.gtFiles):
-                    gtOut[i] = f.read(startIdx, startIdx+1)["values"][0, :, :, :]
+                    gtOut.append(f.read(startIdx, startIdx+1)["values"][0, :, :, :])
 
         #Update imgIdx
         self.imgIdx = self.imgIdx + self.skip
@@ -147,10 +146,7 @@ class pvObj(imageObj):
             outData = np.zeros((numExample,) + self.inputShape)
 
         if(self.getGT):
-            if(self.gtSparse):
-                outGt = []
-            else:
-                outGt = np.zeros((numExample,)+self.gtShape)
+            outGt = [[] for i in range(self.numGt)]
 
         outImg = np.zeros((numExample,) + self.imageShape)
 
@@ -161,18 +157,21 @@ class pvObj(imageObj):
             else:
                 outData[i] = data[0]
             if(self.getGT):
-                if(self.gtSparse):
-                    outGt.append(data[1])
-                else:
-                    outGt[i] = data[1]
+                for j, gt in enumerate(data[1]):
+                    outGt[j].append(gt)
+                #else:
+                #    outGt[j] = data[1]
                 outImg[i] = data[2]
             else:
                 outImg[i] = data[1]
 
         if(self.dataSparse):
             outData = vstack(outData, format="csr")
+
         if(self.gtSparse):
-            outGt = vstack(outGt, format="csr")
+            for j, gt in enumerate(outGt):
+                stackGt = vstack(gt, format="csr")
+                outGt[j] = stackGt
 
         if(self.getGT):
             return (outData, outGt, outImg)
@@ -342,17 +341,15 @@ class kittiVidPvObj(pvObj):
         #        ]
 
     def getDnc(self):
+        dncOut = []
         if(self.dncSparse):
-            dncOut = []
             for i, f in enumerate(self.dncFiles):
                 out = f.read(startIdx, startIdx+1)["values"]
                 dncOut.append(out)
-            dncOut = vstack(dataOut, format="csr")
+            #dncOut = vstack(dataOut, format="csr")
         else:
-            dncOut = np.zeros(self.dncShape)
             for i, f in enumerate(self.dncFiles):
-                dncOut[i] = f.read(0, 1)["values"][0, :, :, :]
-
+                dncOut.append(f.read(0, 1)["values"][0, :, :, :])
         return dncOut
 
     def getData(self, numExample):
