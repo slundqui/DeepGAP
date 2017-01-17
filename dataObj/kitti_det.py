@@ -9,7 +9,7 @@ from PIL import Image
 
 class kittiDetBBObj(imageObj):
 
-    def __init__(self, imgList, imgPrefix, gtPrefix, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True, binClass=None):
+    def __init__(self, imgList, imgPrefix, gtPrefix, resizeMethod="crop", normStd=True, shuffle=True, skip=1, seed=None, getGT=True, binClass=None, minSize=[3, 3]):
 
         self.binClass = binClass
         if(self.binClass is None):
@@ -51,6 +51,8 @@ class kittiDetBBObj(imageObj):
             "Tram":6,
             "Misc":7
         }
+
+        self.minSize = minSize
 
     #Function to resize image to inputShape
     #We augument images here as necessary
@@ -180,7 +182,11 @@ class kittiDetBBObj(imageObj):
                 scale_xmax = self.inputShape[1]-1
             if(scale_ymax >= self.inputShape[0]):
                 scale_ymax = self.inputShape[0]-1
-            outList.append([gtIdx, scale_ymin, scale_ymax, scale_xmin, scale_xmax])
+
+            #Check minimum size
+            if((scale_ymax-scale_ymin) >= self.minScale[0] and
+                    (scale_xmax-scale_xmin) >= self.minScale[1]):
+                outList.append([gtIdx, scale_ymin, scale_ymax, scale_xmin, scale_xmax])
 
         return outList
 
