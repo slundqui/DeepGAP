@@ -184,8 +184,8 @@ class kittiDetBBObj(imageObj):
                 scale_ymax = self.inputShape[0]-1
 
             #Check minimum size
-            if((scale_ymax-scale_ymin) >= self.minScale[0] and
-                    (scale_xmax-scale_xmin) >= self.minScale[1]):
+            if((scale_ymax-scale_ymin) >= self.minSize[0] and
+                    (scale_xmax-scale_xmin) >= self.minSize[1]):
                 outList.append([gtIdx, scale_ymin, scale_ymax, scale_xmin, scale_xmax])
 
         return outList
