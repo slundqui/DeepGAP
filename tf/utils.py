@@ -3,6 +3,88 @@ import tensorflow as tf
 import pdb
 from scipy import sparse
 
+#bbs and scores should be a list of length batchSize
+#bbs items should be [numBB, 4]
+#scores items should be [numBB]
+def calcBatchBB(bbs, scores, detConfThreshold, numBB):
+    outBBList = []
+    for (batchBB, batchScores) in zip(bbs, scores):
+        posBB = calcBB(batchBB, batchScores, detConfThreshold)
+        #Pad or crop to have exactly numBB of bbs
+        #Expand into image shape, and spoof as image to pad/crop into numBB
+        #Pad 1 at bottom in case of zero posBBs
+        padBB = tf.pad(posBB, [[0, 1], [0, 0]], mode='CONSTANT')
+        expandBB = tf.expand_dims(padBB, -1)
+        reshapedBB = tf.image.resize_image_with_crop_or_pad(expandBB, numBB, 4)[:, :, 0]
+        outBBList.append(reshapedBB)
+    #Outputs [batch, numBB, 4]
+    return tf.pack(outBBList, 0)
+
+#Note that this assumes objVals and bbVals are from 1 batch
+#i.e. 4 dimensional in [y, x, window, 2] and [y, x, windows, 4] respectively
+#Returns 2 lists, one for output bbs and one for the score of each bb
+def runNms(objVals, bbVals, maxNumBB, nms_iou_threshold=None):
+    scores = tf.reshape(objVals[:, :, :, 0], [-1])
+    bbs = tf.reshape(bbVals, [-1, 4])
+    nmsIdx = tf.image.non_max_suppression(bbs, scores, maxNumBB, iou_threshold=nms_iou_threshold)
+    outBbs = tf.gather(bbs, nmsIdx)
+    outScores = tf.gather(scores, nmsIdx)
+    return (outBbs, outScores)
+
+#bb should be [numBB, 4]
+#scores should be [numBB]
+def calcBB(bb, score, detConfThreshold):
+    posBBIdx = tf.where(tf.greater(score, detConfThreshold))
+    posBB = tf.gather_nd(bb, posBBIdx)
+    return posBB
+
+def calcPvR(estObj, estBB, gtObj, gtBB, batchSize, maxNumBB, det_iou_threshold, nms=True, nms_iou_threshold=0.5):
+
+    precision = []
+    recall = []
+    for b in range(batchSize):
+        bEstObj = estObj[b, :, :, :, :]
+        bEstBB = estBB[b, :, :, :, :]
+        bGtObj = gtObj[b, :, :, :, :]
+        bGtBB = gtBB[b, :, :, :, :]
+
+        gtProposals = calcBB(bGtObj, bGtBB, 0.5, maxNumBB, nms=False)
+        expandGtProposals = tf.expand_dims(gtProposals, 0)
+        gtArea = (expandGtProposals[:, :, 2] - expandGtProposals[:, :, 0]) *                  (expandGtProposals[:, :, 3] - expandGtProposals[:, :, 1])
+
+        batchPrecision = []
+        batchRecall = []
+        #How to calculate best threshold?
+        for t in np.linspace(0, 1):
+            estProposals = calcBB(bEstObj, bEstBB, t, maxNumBB, nms=nms, nms_iou_threshold=nms_iou_threshold)
+            expandEstProposals = tf.expand_dims(gtProposals, 1)
+            estArea = (expandEstProposals[:, :, 2] - expandEstProposals[:, :, 0]) * (expandEstProposals[:, :, 3] - expandEstProposals[:, :, 1])
+            #Calculate iou
+            intYMin = tf.maximum(expandGtProposals[:, :, 0], expandEstProposals[:, :, 0])
+            intYMax = tf.minimum(expandGtProposals[:, :, 2], expandEstProposals[:, :, 2])
+            intXMin = tf.maximum(expandGtProposals[:, :, 1], expandEstProposals[:, :, 1])
+            intXMax = tf.minimum(expandGtProposals[:, :, 3], expandEstProposals[:, :, 3])
+
+            intArea = tf.nn.relu((intYMax-intYMin) * (intXMax-intXMin))
+            unionArea = gtArea + estArea - intArea
+            iou = tf.to_float(intArea)/unionArea
+            #IOU is in the shape of [numEstBB, numGtBB]
+            bool_iou = iou > det_iou_threshold
+            #For every gt box, if any est bbs overlaps sufficiently
+            tp = tf.reduce_sum(tf.cast(tf.reduce_any(bool_iou, axis=0), tf.float32))
+            fp = tf.reduce_sum(tf.cast(tf.reduce_all(tf.logical_not(bool_iou), axis=1), tf.float32))
+            fn = tf.reduce_sum(tf.cast(tf.reduce_all(tf.logical_not(bool_iou), axis=0), tf.float32))
+
+            #When tp+fp == 0, precision is 1
+            batchPrecision.append(tf.select(tp+fp == 0, 1.0, (tp)/(tp+fp)))
+            batchRecall.append((tp)/(tp+fn))
+
+        precision.append(tf.pack(batchPrecision, 0))
+        recall.append(tf.pack(batchRecall, 0))
+
+        #Calculate auc, TODO
+    return [tf.pack(precision, 0), tf.pack(recall, 0)]
+
 def standard_batch_norm(l, x, n_out, phase_train, scope='BN'):
     """
     Batch normalization on feedforward maps.

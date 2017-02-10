@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
 from dataObj.pv_image import kittiVidPvObj
-from tf.SupFRCNN_kitti import FRCNN
+from tf.SupVGGFRCNN_kitti import VGG_FRCNN
 import numpy as np
 import pdb
 
@@ -56,7 +56,7 @@ params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/sup_kitti_frcnn_test/",
+    'runDir':          "/sup_kitti_vgg_frcnn/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -102,12 +102,12 @@ params = {
     'nmsIouThreshold': 0.5,
     'maxBB': 100,
     'maxNegSamples': 256,
-    'numConvLayers': 2,
+    'vggFile': "/home/slundquist/mountData/pretrain/imagenet-vgg-verydeep-16.mat",
 }
 
 #Allocate tensorflow object
 #This will build the graph
-tfObj = FRCNN(params, trainDataObj.inputShape)
+tfObj = VGG_FRCNN(params, trainDataObj.inputShape)
 
 print "Done init"
 tfObj.runModel(trainDataObj, testDataObj = testDataObj)

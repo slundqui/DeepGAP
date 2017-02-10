@@ -11,11 +11,11 @@ from tensorflow.python.ops import control_flow_ops
 import sys
 #import matplotlib.pyplot as plt
 
-class FRCNN(TFObj):
+class VGG_FRCNN(TFObj):
 
     #Sets dictionary of params to member variables
     def loadParams(self, params):
-        super(FRCNN, self).loadParams(params)
+        super(VGG_FRCNN, self).loadParams(params)
         #GT shape here is defined for obj/noobj
         #stored as (numGt, y, x, windows*2)
         self.gtShape = params['gtShape']
@@ -28,28 +28,33 @@ class FRCNN(TFObj):
         self.nmsIouThreshold = params['nmsIouThreshold']
         self.maxBB = params['maxBB']
         self.maxNegSamples = params['maxNegSamples']
-        self.numConvLayers = params['numConvLayers']
         self.bestCurrThresh = .5
+        self.vggFile = params['vggFile']
 
     def defineVars(self):
-        #Define all variables outside of scope
-        #Hidden 1st layer weights
-        self.h_weight = weight_variable_xavier([2, 15, 32, 6, 3072], "hidden_weight")
-        self.h_bias = bias_variable([3072], "hidden_bias")
+        ##Define all variables outside of scope
+        ##Hidden 1st layer weights
+        #self.h_weight = weight_variable_xavier([2, 15, 32, 6, 3072], "hidden_weight")
+        #self.h_bias = bias_variable([3072], "hidden_bias")
 
-        #Convolution weights
-        self.conv_weights = []
-        self.conv_bias = []
-        inputFeatures = 3072
-        for i in range(self.numConvLayers):
-            #First convolution weights
-            self.conv_weights.append(weight_variable_xavier([3, 3, inputFeatures, 512], "conv"+str(i) + "_weight"))
-            self.conv_bias.append(bias_variable([512], "conv"+str(i)+"_bias"))
-            inputFeatures = 512
+        ##Convolution weights
+        #self.conv_weights = []
+        #self.conv_bias = []
+        #inputFeatures = 3072
+
+        #for i in range(self.numConvLayers):
+        #    #First convolution weights
+        #    self.conv_weights.append(weight_variable_xavier([3, 3, inputFeatures, 512], "conv"+str(i) + "_weight"))
+        #    self.conv_bias.append(bias_variable([512], "conv"+str(i)+"_bias"))
+        #    inputFeatures = 512
 
         #Two sibling fully connected layers
         #Obj/no obj
         #gtShape[3] encompases both windows and obj/no obj class
+
+        self.W_convFrcnn= weight_variable_xavier([3, 3, 512, 512], "W_convFrcnn")
+        self.B_convFrcnn= weight_variable_xavier([512], "B_convFrcnn")
+
         self.fc_obj_weight = weight_variable_xavier([1, 1, 512, self.gtShape[3]], "fc_obj_weight")
         self.fc_obj_bias= bias_variable([self.gtShape[3]], "fc_obj_bias" )
         #BB Regression
@@ -58,19 +63,24 @@ class FRCNN(TFObj):
 
     #Builds the model.
     def buildModel(self, inputShape):
+        if(self.vggFile):
+            npWeights = loadWeights(self.vggFile)
+        else:
+            print "Must load from weights"
+            assert(0)
+
         #Running on GPU
         with tf.device(self.device):
             self.defineVars()
             with tf.name_scope("inputOps"):
                 #Get convolution variables as placeholders
                 self.inputImage = node_variable([self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]], "inputImage")
-                #We split the time dimension to stereo and concatenate with feature dim
-                self.reshapeImage = tf.reshape(self.inputImage,
-                        [self.batchSize, 3, 2, inputShape[1], inputShape[2], inputShape[3]])
-                self.permuteImage = tf.transpose(self.reshapeImage, [0, 1, 3, 4, 5, 2])
-                self.stereoImage = tf.reshape(self.permuteImage,
-                        [self.batchSize, 3, inputShape[1], inputShape[2], inputShape[3]*2])
-                self.padInput = tf.pad(self.stereoImage, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
+                self.singleImage = self.inputImage[:, 4, :, :, :]
+
+                #self.stereoImage = tf.reshape(self.permuteImage,
+                        #[self.batchSize, 3, inputShape[1], inputShape[2], inputShape[3]*2])
+
+                #self.padInput = tf.pad(self.stereoImage, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
 
             with tf.name_scope("groundTruth"):
                 self.objIndices = tf.placeholder("int64", [2, None], "objIndices")
@@ -138,37 +148,77 @@ class FRCNN(TFObj):
                 self.relBBGt = tf.pack([self.check_gtTy, self.check_gtTx, self.check_gtTh, self.check_gtTw], 4)
                 #self.relBBGt = tf.pack([self.gtTy, self.gtTx, self.gtTh, self.gtTw], 4)
 
-            #TODO abstract this first layer out
-            with tf.name_scope("Hidden"):
-                self.h_hidden = tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
+            with tf.name_scope("Conv1Ops"):
+                self.W_conv1_1 = weight_variable_fromnp(npWeights["conv1_1_w"], "w_conv1_1")
+                self.B_conv1_1 = weight_variable_fromnp(npWeights["conv1_1_b"], "b_conv1_1")
+                self.W_conv1_2 = weight_variable_fromnp(npWeights["conv1_2_w"], "w_conv1_2")
+                self.B_conv1_2 = weight_variable_fromnp(npWeights["conv1_2_b"], "b_conv1_2")
 
-            with tf.name_scope("pool"):
-                yPool = int(np.ceil(float(16)/self.gtShape[1]))
-                xPool = int(np.ceil(float(64)/self.gtShape[2]))
+                self.h_conv1_1 = tf.nn.relu(conv2d(self.singleImage, self.W_conv1_1, "conv1_1", stride=[1, 1, 1, 1]) + self.B_conv1_1)
+                self.h_conv1_2 = tf.nn.relu(conv2d(self.h_conv1_1, self.W_conv1_2, "conv1_1", stride=[1, 1, 1, 1]) + self.B_conv1_2)
+                self.h_pool1 = maxpool_2x2(self.h_conv1_2, "pool1")
 
-                self.timePooled = tf.reduce_max(self.h_hidden, reduction_indices=1)
-                #self.inputPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
+            with tf.name_scope("Conv2Ops"):
+                self.W_conv2_1 = weight_variable_fromnp(npWeights["conv2_1_w"], "w_conv2_1")
+                self.B_conv2_1 = weight_variable_fromnp(npWeights["conv2_1_b"], "b_conv2_1")
+                self.W_conv2_2 = weight_variable_fromnp(npWeights["conv2_2_w"], "w_conv2_2")
+                self.B_conv2_2 = weight_variable_fromnp(npWeights["conv2_2_b"], "b_conv2_2")
 
-            with tf.name_scope("conv"):
-                #inLayer = self.inputPooled
-                inLayer = self.timePooled
-                self.convLayers = []
-                self.keep_prob = tf.placeholder(tf.float32)
+                self.h_conv2_1 = tf.nn.relu(conv2d(self.h_pool1, self.W_conv2_1, "conv2_1") + self.B_conv2_1)
+                self.h_conv2_2 = tf.nn.relu(conv2d(self.h_conv2_1, self.W_conv2_2, "conv2_2") + self.B_conv2_2)
+                self.h_pool2 = maxpool_2x2(self.h_conv2_2, "pool2")
 
-                for i in range(self.numConvLayers):
-                    tmpConvLayer = tf.nn.relu(tf.nn.conv2d(inLayer, self.conv_weights[i], [1, 1, 1, 1], padding="SAME") + self.conv_bias[i])
-                    dropoutConvLayer = tf.nn.dropout(tmpConvLayer, self.keep_prob)
-                    self.convLayers.append(dropoutConvLayer)
-                    inLayer = dropoutConvLayer
-                outLayer = self.convLayers[-1]
+            with tf.name_scope("Conv3Ops"):
+                self.W_conv3_1 = weight_variable_fromnp(npWeights["conv3_1_w"], "w_conv3_1")
+                self.B_conv3_1 = weight_variable_fromnp(npWeights["conv3_1_b"], "b_conv3_1")
+                self.W_conv3_2 = weight_variable_fromnp(npWeights["conv3_2_w"], "w_conv3_2")
+                self.B_conv3_2 = weight_variable_fromnp(npWeights["conv3_2_b"], "b_conv3_2")
+                self.W_conv3_3 = weight_variable_fromnp(npWeights["conv3_3_w"], "w_conv3_3")
+                self.B_conv3_3 = weight_variable_fromnp(npWeights["conv3_3_b"], "b_conv3_3")
+
+                self.h_conv3_1 = tf.nn.relu(conv2d(self.h_pool2, self.W_conv3_1, "conv3_1") + self.B_conv3_1)
+                self.h_conv3_2 = tf.nn.relu(conv2d(self.h_conv3_1, self.W_conv3_2, "conv3_2") + self.B_conv3_2)
+                self.h_conv3_3 = tf.nn.relu(conv2d(self.h_conv3_2, self.W_conv3_3, "conv3_2") + self.B_conv3_3)
+                #self.h_pool3 = maxpool_2x2(self.h_conv3_3, "pool3")
+
+            with tf.name_scope("Conv4Ops"):
+                self.W_conv4_1 = weight_variable_fromnp(npWeights["conv4_1_w"], "w_conv4_1")
+                self.B_conv4_1 = weight_variable_fromnp(npWeights["conv4_1_b"], "b_conv4_1")
+                self.W_conv4_2 = weight_variable_fromnp(npWeights["conv4_2_w"], "w_conv4_2")
+                self.B_conv4_2 = weight_variable_fromnp(npWeights["conv4_2_b"], "b_conv4_2")
+                self.W_conv4_3 = weight_variable_fromnp(npWeights["conv4_3_w"], "w_conv4_3")
+                self.B_conv4_3 = weight_variable_fromnp(npWeights["conv4_3_b"], "b_conv4_3")
+
+                #self.h_conv4_1 = tf.nn.relu(conv2d(self.h_pool3, self.W_conv4_1, "conv4_1") + self.B_conv4_1)
+                self.h_conv4_1 = tf.nn.relu(conv2d(self.h_conv3_3, self.W_conv4_1, "conv4_1") + self.B_conv4_1)
+                self.h_conv4_2 = tf.nn.relu(conv2d(self.h_conv4_1, self.W_conv4_2, "conv4_2") + self.B_conv4_2)
+                self.h_conv4_3 = tf.nn.relu(conv2d(self.h_conv4_2, self.W_conv4_3, "conv4_2") + self.B_conv4_3)
+                #self.h_pool4 = maxpool_2x2(self.h_conv4_3, "pool4")
+
+
+            with tf.name_scope("Conv5Ops"):
+                self.W_conv5_1 = weight_variable_fromnp(npWeights["conv5_1_w"], "w_conv5_1")
+                self.B_conv5_1 = weight_variable_fromnp(npWeights["conv5_1_b"], "b_conv5_1")
+                self.W_conv5_2 = weight_variable_fromnp(npWeights["conv5_2_w"], "w_conv5_2")
+                self.B_conv5_2 = weight_variable_fromnp(npWeights["conv5_2_b"], "b_conv5_2")
+                self.W_conv5_3 = weight_variable_fromnp(npWeights["conv5_3_w"], "w_conv5_3")
+                self.B_conv5_3 = weight_variable_fromnp(npWeights["conv5_3_b"], "b_conv5_3")
+
+                #self.h_conv5_1 = tf.nn.relu(conv2d(self.h_pool4, self.W_conv5_1, "conv5_1") + self.B_conv5_1)
+                self.h_conv5_1 = tf.nn.relu(conv2d(self.h_conv4_2, self.W_conv5_1, "conv5_1") + self.B_conv5_1)
+                self.h_conv5_2 = tf.nn.relu(conv2d(self.h_conv5_1, self.W_conv5_2, "conv5_2") + self.B_conv5_2)
+                self.h_conv5_3 = tf.nn.relu(conv2d(self.h_conv5_2, self.W_conv5_3, "conv5_2") + self.B_conv5_3)
+
+            with tf.name_scope("rcnn"):
+                self.h_conv_rcnn= tf.nn.relu(conv2d(self.h_conv5_3, self.W_convFrcnn, "conv5_1") + self.B_convFrcnn)
 
             with tf.name_scope("fcObj"):
-                tmpFcObj = tf.nn.conv2d(outLayer, self.fc_obj_weight, [1, 1, 1, 1], padding="SAME") + self.fc_obj_bias
+                tmpFcObj = tf.nn.conv2d(self.h_conv_rcnn, self.fc_obj_weight, [1, 1, 1, 1], padding="SAME") + self.fc_obj_bias
                 #Expand out window dim
                 self.fcObj = tf.nn.softmax(tf.reshape(tmpFcObj, [self.batchSize, self.gtShape[1], self.gtShape[2], self.gtShape[3]/2, 2]))
 
             with tf.name_scope("fcReg"):
-                tmpFcReg = tf.nn.conv2d(outLayer, self.fc_reg_weight, [1, 1, 1, 1], padding="SAME") + self.fc_reg_bias
+                tmpFcReg = tf.nn.conv2d(self.h_conv_rcnn, self.fc_reg_weight, [1, 1, 1, 1], padding="SAME") + self.fc_reg_bias
                 self.fcReg = tf.reshape(tmpFcReg, [self.batchSize, self.gtShape[1], self.gtShape[2], self.gtShape[3]/2, 4])
 
             with tf.name_scope("calcMetric"):
@@ -298,7 +348,16 @@ class FRCNN(TFObj):
 
             with tf.name_scope("Opt"):
                 #Define optimizer
-                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss)
+                self.optimizerAll = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss,
+                        var_list=[
+                            self.W_convFrcnn,
+                            self.B_convFrcnn,
+                            self.fc_obj_weight,
+                            self.fc_obj_bias,
+                            self.fc_reg_weight,
+                            self.fc_reg_bias,
+                        ]
+                        )
 
         #Summaries
         tf.scalar_summary('loss', self.loss, name="loss")
@@ -320,15 +379,6 @@ class FRCNN(TFObj):
         tf.histogram_summary('gtTh', self.subGtTh, name="vis_gtTh")
         tf.histogram_summary('gtTw', self.subGtTw, name="vis_gtTw")
 
-        tf.histogram_summary('h_hidden', self.h_hidden, name="vis_h_hidden")
-
-        #Conv layer histograms
-        for i in range(self.numConvLayers):
-            convStr = "conv"+str(i)
-            tf.histogram_summary('h_'+convStr       , self.convLayers[i], name="vis_h_"+convStr)
-            tf.histogram_summary(convStr + "_weight", self.conv_weights[i], name="vis_"+convStr+"_weight")
-            tf.histogram_summary(convStr + '_bias'  , self.conv_bias[i], name="vis_"+convStr+"bias")
-
         tf.histogram_summary('fcObj', self.fcObj, name="vis_fcObj")
         tf.histogram_summary('subFcObj', self.subFcObj, name="vis_subFcObj")
         tf.histogram_summary('fcReg', self.fcReg, name="vis_fcReg")
@@ -340,8 +390,8 @@ class FRCNN(TFObj):
         tf.histogram_summary('outTw', self.outTw, name="vis_outTw")
 
         #Weight and bias hists
-        tf.histogram_summary('h_weight', self.h_weight, name="vis_h_weight")
-        tf.histogram_summary('h_bias', self.h_bias, name="vis_h_bias")
+        tf.histogram_summary('W_convFrcnn', self.W_convFrcnn, name="vis_W_convFrcnn")
+        tf.histogram_summary('B_convFrcnn', self.B_convFrcnn, name="vis_B_convFrcnn")
         tf.histogram_summary('fc_obj_weight', self.fc_obj_weight, name="vis_fc_obj_weight")
         tf.histogram_summary('fc_obj_bias', self.fc_obj_bias, name="vis_fc_obj_bias")
         tf.histogram_summary('fc_reg_weight', self.fc_reg_weight, name="vis_fc_reg_weight")
@@ -358,13 +408,13 @@ class FRCNN(TFObj):
         return v
 
 
-    def genFeedDict(self, data, dropoutProb):
+    def genFeedDict(self, data):
         if(self.detConfidenceThreshold is None):
             thresh = self.bestCurrThresh
         else:
             thresh = self.detConfidenceThreshold
 
-        feedDict = {self.inputImage: data[0], self.inThreshold: self.detConfidenceThreshold, self.keep_prob: dropoutProb}
+        feedDict = {self.inputImage: data[0], self.inThreshold: self.detConfidenceThreshold}
         if(data[1] is not None):
             (spObjGt, spRegGt) = data[1]
 
@@ -385,7 +435,7 @@ class FRCNN(TFObj):
         for i in range(self.innerSteps):
             #Get data from dataObj
             data = dataObj.getData(self.batchSize)
-            feedDict = self.genFeedDict(data, .5)
+            feedDict = self.genFeedDict(data)
 
             #Run optimizer
             try:
@@ -417,7 +467,7 @@ class FRCNN(TFObj):
     #Evaluates all of inData at once
     #If an inGt is provided, will calculate summary as test set
     def evalModel(self, inData, inGt = None, plot=True):
-        feedDict = self.genFeedDict([inData, inGt], 1.0)
+        feedDict = self.genFeedDict([inData, inGt])
 
         #outVals = self.vis_cam.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
@@ -435,7 +485,6 @@ class FRCNN(TFObj):
         #TODO nmsOutScore is a list of tensors, does this work?
         npOutScore = self.sess.run(self.nmsOutScore, feed_dict=feedDict)
         npOutBB = self.sess.run(self.nmsOutBB, feed_dict=feedDict)
-
         npGtScore = self.sess.run(self.gtScores, feed_dict=feedDict)
         npGtBB = self.sess.run(self.gtBBs, feed_dict=feedDict)
         #Parse npGtBB for positive GT only
