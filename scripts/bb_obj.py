@@ -50,7 +50,7 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIo
 
     #Our output is 2 sparse arrays,
     #One is (numImage, gtShape[0], gtShape[1], windows, numClass) binary file that cooresponds to obj or no obj
-    #Second is (numImage, gtShape[0], gtShape[1], windows, 5) that cooresponds to (id, ymin, ymax, xmin, xmax) of bb
+    #Second is (numImage, gtShape[0], gtShape[1], windows, 5) that cooresponds to (id, ymin, xmin, ymax, xmax) of bb
 
     with tf.Session() as sess1:
         sess1.run(init)
@@ -76,7 +76,7 @@ def bb_obj(dataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIo
             print "Buiding BB"
             for j, bb in enumerate(allBB):
                 imgIdx = it*imageBatch + j
-                (objid, up, down, left, right) = bb
+                (objid, up, left, down, right) = bb
                 gtArray[j, up:down, left:right, :] = 1
 
             print "Calculating IOU"
