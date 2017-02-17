@@ -45,5 +45,5 @@ trainDataObj = kittiDetBBObj(trainImageList, trainImagePrefix, trainGTPrefix, re
 #testDataObj = imageNetDetBBObj(testImageList, testImagePrefix, testGTPrefix, clsMeta, resizeMethod="crop", normStd=False, shuffle=False)
 
 bb_mask(windowSize, gtShape, trainDataObj.inputShape, outPrefix)
-bb_obj(trainDataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIouThresh, device="/cpu:0")
+bb_obj(trainDataObj, windowSize, imageBatch, gtShape, outPrefix, iouThresh, minIouThresh, device="/gpu:0")
 

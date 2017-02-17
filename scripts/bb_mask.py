@@ -30,7 +30,7 @@ def bb_mask(windowSize, gtShape, imageShape, outPrefix):
     data = {"values":mask, "time":[0]}
     writepvpfile(outFn, data)
 
-    #anchor shapes are stored as (ymin, ymax, xmin, xmax)
+    #anchor shapes are stored as (ymin, xmin, ymax, xmax)
     anchorShape = (gtShape[0], gtShape[1], len(windowSize), 4)
     anchor = np.zeros((1,) + anchorShape)
     for i, window in enumerate(windowSize):
@@ -46,7 +46,7 @@ def bb_mask(windowSize, gtShape, imageShape, outPrefix):
                 xMargin = window[1]/2
                 xMin = xImg-xMargin
                 xMax = xImg+window[1]
-                anchor[0, y, x, i, :] = [yMin, yMax, xMin, xMax]
+                anchor[0, y, x, i, :] = [yMin, xMin, yMax, xMax]
     #Reshape anchor to combine window and shape dimensions
     anchor = np.reshape(anchor, [1, gtShape[0], gtShape[1], len(windowSize)*4])
     outFn = outPrefix + "_anchor.pvp"
