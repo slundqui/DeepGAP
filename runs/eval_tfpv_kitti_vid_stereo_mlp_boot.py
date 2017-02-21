@@ -10,8 +10,8 @@ import pdb
 
 #Paths to list of filenames
 trainInputs = [
-            "/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_eval/time0.pvp",
-            "/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_eval/time1.pvp",
+            "/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_eval_stereo/time0.pvp",
+            #"/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_eval/time1.pvp",
             ]
 
 trainGts = [
@@ -47,7 +47,7 @@ stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_1_bin/",
+    'runDir':          "/eval_tfpv_kitti_vid_stereo_4x8_boot_1_bin/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -62,7 +62,7 @@ stage1_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_stereo_4x8_boot_1_bin/checkpoints/save-model-30100",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -105,7 +105,7 @@ stage2_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_2_bin/",
+    'runDir':          "/eval_tfpv_kitti_vid_stereo_4x8_boot_2_bin/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -120,7 +120,7 @@ stage2_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_stereo_4x8_boot_2_bin/checkpoints/save-model-30100",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -162,7 +162,7 @@ stage3_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_3_bin/",
+    'runDir':          "/eval_tfpv_kitti_vid_stereo_4x8_boot_3_bin/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -177,7 +177,7 @@ stage3_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_3_bin/checkpoints/save-model-60100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_stereo_4x8_boot_3_bin/checkpoints/save-model-60100",
     #Device to run on
     'device':          '/gpu:0',
     #Num iterations
