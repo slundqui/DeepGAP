@@ -25,11 +25,23 @@ class SupVidMLP2_kitti(TFObj):
         self.gtSparse = params['gtSparse']
         self.regWeight = params['regWeight']
         self.resLoad = params['resLoad']
+        self.stereo = params['stereo']
+        self.time = params['time']
 
     def defineVars(self):
         #Define all variables outside of scope
-        self.h_weight = weight_variable_xavier([2, 16, 32, 6, 3072], "hidden_weight")
+        if(self.stereo):
+            numInputFeatures = 6
+        else:
+            numInputFeatures = 3
+        if(self.time):
+            numTimeInputs = 2
+        else:
+            numTimeInputs = 1
+
+        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, 3072], "hidden_weight")
         self.h_bias = bias_variable([3072], "hidden_bias")
+
         self.conv1_w = weight_variable([1, 1, 3072, 3072], "conv1_w", 1e-6)
         self.conv1_b = weight_variable([3072], "conv1_b", 1e-6)
         self.conv2_w = weight_variable([1, 1, 3072, 3072], "conv2_w", 1e-6)
@@ -47,13 +59,19 @@ class SupVidMLP2_kitti(TFObj):
                 #self.gt = node_variable([self.batchSize, 1, 8, 16, self.numClasses], "gt")
 
                 self.inputImage = node_variable((self.batchSize,)+inputShape, "inputImage")
-                #We split the time dimension to stereo and concatenate with feature dim
-                self.reshapeImage = tf.reshape(self.inputImage,
-                        [self.batchSize, 3, 2, inputShape[1], inputShape[2], inputShape[3]])
-                self.permuteImage = tf.transpose(self.reshapeImage, [0, 1, 3, 4, 5, 2])
-                self.stereoImage = tf.reshape(self.permuteImage,
-                        [self.batchSize, 3, inputShape[1], inputShape[2], inputShape[3]*2])
-                self.padInput = tf.pad(self.stereoImage, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
+                if(self.stereo):
+                    #We split the time dimension to stereo and concatenate with feature dim
+                    numTime = inputShape[0]/2
+                    self.reshapeImage = tf.reshape(self.inputImage,
+                            [self.batchSize, numTime, 2, inputShape[1], inputShape[2], inputShape[3]])
+                    self.permuteImage = tf.transpose(self.reshapeImage, [0, 1, 3, 4, 5, 2])
+                    self.image = tf.reshape(self.permuteImage,
+                            [self.batchSize, numTime, inputShape[1], inputShape[2], inputShape[3]*2])
+                else:
+                    self.image = tf.reshape(self.inputImage,
+                            [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
+
+                self.padInput = tf.pad(self.image, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
                 #Reshape time dimension to feature dimension
 
                 if(self.gtSparse):
@@ -75,15 +93,19 @@ class SupVidMLP2_kitti(TFObj):
                 #self.norm_gt = self.gt/tf.reduce_sum(self.gt, reduction_indices=4, keep_dims=True)
 
             with tf.name_scope("Hidden"):
-                self.h_hidden= tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
-                #self.training = tf.placeholder("bool", name="training")
-                #(self.h_norm_hidden, self.beta, self.gamma) = standard_batch_norm("hidden", self.h_hidden, 3072, self.training)
+                if(self.time):
+                    self.h_hidden= tf.nn.relu(tf.nn.conv3d(self.padInput, self.h_weight, [1, 1, 4, 4, 1], padding="VALID") + self.h_bias)
+                    self.timePooled = tf.reduce_max(self.h_hidden, reduction_indices=1)
+                else:
+                    self.squeezeInput = tf.squeeze(self.padInput, axis=1)
+                    self.squeezeWeight = tf.squeeze(self.h_weight, axis=0)
+                    self.h_hidden = tf.nn.relu(tf.nn.conv2d(self.squeezeInput, self.squeezeWeight, [1, 4, 4, 1], padding="VALID") + self.h_bias)
+                    self.timePooled = self.h_hidden
 
 
             with tf.name_scope("conv1"):
                 yPool = 2
                 xPool = 2
-                self.timePooled = tf.reduce_max(self.h_hidden, reduction_indices=1)
                 self.hiddenPooled = tf.nn.max_pool(self.timePooled, ksize=[1, yPool, xPool, 1], strides=[1, yPool, xPool, 1], padding="SAME")
 
                 self.h_res = tf.nn.relu(tf.nn.conv2d(self.hiddenPooled, self.conv1_w, [1, 1, 1, 1], padding="SAME") + self.conv1_b)
@@ -271,22 +293,29 @@ class SupVidMLP2_kitti(TFObj):
                 gt = data[1]
             print "Plotting"
             self.evalAndPlotWeights(feedDict, filename)
-            self.evalAndPlotCam(feedDict, data, gt, filename)
+            #self.evalAndPlotCam(feedDict, data, gt, filename)
 
     def evalAndPlotWeights(self, feedDict, prefix):
         np_weights = self.sess.run(self.h_weight, feed_dict=feedDict)
         (ntime, ny, nx, nfns, nf) = np_weights.shape
-        np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, 3, 2, nf))
-        for s in range(2):
+        if(self.stereo):
+            np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, 3, 2, nf))
+            for s in range(2):
+                filename = prefix
+                if(s == 0):
+                    outFilename = filename + "_left"
+                elif(s == 1):
+                    outFilename = filename + "_right"
+                for t in range(ntime):
+                    outFilename += "_time" + str(t) + ".png"
+                    plotWeights = np_weights_reshape[t, :, :, :, s, :]
+                    plot_weights(plotWeights, outFilename, [3, 0, 1, 2])
+        else:
             filename = prefix
-            if(s == 0):
-                filename += "_left"
-            elif(s == 1):
-                filename += "_right"
             for t in range(ntime):
-                filename += "_time" + str(t) + ".png"
-                plotWeights = np_weights_reshape[t, :, :, :, s, :]
-                plot_weights(plotWeights, filename, [3, 0, 1, 2])
+                outFilename = filename + "_time" + str(t) + ".png"
+                plotWeights = np_weights[t, :, :, :, :]
+                plot_weights(plotWeights, outFilename, [3, 0, 1, 2])
 
     def evalAndPlotCam(self, feedDict, data, gt, prefix):
 
@@ -354,7 +383,7 @@ class SupVidMLP2_kitti(TFObj):
             else:
                 gt = inGt
             data = (inData, inGt, inImg)
-            self.evalAndPlotCam(feedDict, data, gt, filename)
+            #self.evalAndPlotCam(feedDict, data, gt, filename)
 
         return outVals
 

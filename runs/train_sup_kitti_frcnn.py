@@ -44,19 +44,22 @@ testLines = testf.readlines()
 testf.close()
 testRange = [int(l) for l in testLines]
 
+#Only do subset of testRange for computational speed
+testRange = testRange[:160]
+
 trainseed=None
 testseed=None
 
 #Get object from which tensorflow will pull data from
 trainDataObj = kittiVidPvObj(trainInputs, gts, imageFns, dncFilenames, None, shuffle=True, rangeIdx=trainRange, seed=trainseed)
-testDataObj = kittiVidPvObj(trainInputs, gts, imageFns, dncFilenames, None, shuffle=True, rangeIdx=testRange, seed=testseed)
+testDataObj = kittiVidPvObj(trainInputs, gts, imageFns, dncFilenames, None, shuffle=False, rangeIdx=testRange, seed=testseed)
 
 
 params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/sup_kitti_frcnn_test/",
+    'runDir':          "/sup_kitti_frcnn_3layer/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -71,7 +74,7 @@ params = {
     'writeStep':       10, #300,
     #Flag for loading weights from checkpoint
     'load':            False,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/save-model-19100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/sup_kitti_frcnn_3layer/save-model",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -98,11 +101,12 @@ params = {
     'anchors': trainDataObj.getDnc()[0],
     'imageShape': [trainDataObj.inputShape[1], trainDataObj.inputShape[2], trainDataObj.inputShape[3]],
     'detConfidenceThreshold': None, #0.7,
-    'iouDetThreshold': 0.5, #0.7
-    'nmsIouThreshold': 0.5,
-    'maxBB': 100,
+    'iouDetThreshold': 0.7,
+    'nmsIouThreshold': 0.7,
+    'maxBB': 50,
     'maxNegSamples': 256,
     'numConvLayers': 2,
+    'roiPoolSize': [7, 7]
 }
 
 #Allocate tensorflow object

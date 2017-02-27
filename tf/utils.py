@@ -3,12 +3,117 @@ import tensorflow as tf
 import pdb
 from scipy import sparse
 
+
+#Conversion tools for bbs
+#Both tensors can be any shape, with the size of the last dimension as 4
+#Last dimension contains [ymin, xmin, ymax, xmax]
+#Converts to [ywrt, xwrt, hwrt, wwrt]
+def absBBtoWrtBB(absBB, wrtBB):
+    absYmin = absBB[..., 0]
+    absXmin = absBB[..., 1]
+    absYmax = absBB[..., 2]
+    absXmax = absBB[..., 3]
+
+    wrtYmin = wrtBB[..., 0]
+    wrtXmin = wrtBB[..., 1]
+    wrtYmax = wrtBB[..., 2]
+    wrtXmax = wrtBB[..., 3]
+
+    #Calculate w/h
+    absH = absYmax - absYmin
+    absW = absXmax - absXmin
+
+    wrtH = wrtYmax - wrtYmin
+    wrtW = wrtXmax - wrtXmin
+
+    outY = tf.to_float(absYmin - wrtYmin)/(wrtH + 1e-8)
+    outX = tf.to_float(absXmin - wrtXmin)/(wrtW + 1e-8)
+    outH = tf.log((absH/wrtH) + 1e-8)
+    outW = tf.log((absW/wrtW) + 1e-8)
+
+    return tf.stack([outY, outX, outH, outW], -1)
+
+def wrtBBtoAbsBB(inBB, wrtBB):
+    inY = inBB[..., 0]
+    inX = inBB[..., 1]
+    inH = inBB[..., 2]
+    inW = inBB[..., 3]
+
+    wrtYmin = wrtBB[..., 0]
+    wrtXmin = wrtBB[..., 1]
+    wrtYmax = wrtBB[..., 2]
+    wrtXmax = wrtBB[..., 3]
+
+    wrtH = wrtYmax - wrtYmin
+    wrtW = wrtXmax - wrtXmin
+
+    outYmin = (inY * (wrtH + 1e-8)) + wrtYmin
+    outXmin = (inX * (wrtW + 1e-8)) + wrtXmin
+    outH = (tf.exp(inH) - 1e-8) * wrtH
+    outW = (tf.exp(inW) - 1e-8) * wrtW
+    outYmax = outYMin + outH
+    outXmax = outXMin + outW
+
+    return tf.stack([outYmin, outXmin, outYmax, outXmax])
+
+#imgSize is [y, x]
+def absBBtoRelBB(absBB, imgSize):
+    absYmin = absBB[..., 0]
+    absXmin = absBB[..., 1]
+    absYmax = absBB[..., 2]
+    absXmax = absBB[..., 3]
+
+    relYmin = tf.to_float(absYmin)/imgSize[0]
+    relXmin = tf.to_float(absXmin)/imgSize[1]
+    relYmax = tf.to_float(absYmax)/imgSize[0]
+    relXmax = tf.to_float(absXmax)/imgSize[1]
+
+    return tf.stack([relYmin, relXmin, relYmax, relXmax])
+
+
+
+
+
+
+
+
+
+
+
+
+    #posIdx = tf.to_int32(tf.where(self.maskObjGt[:, :, :, :, 0] > .5))
+
+    #self.gtTy = (self.absoluteBB[:, :, :, :, 0]-self.absoluteAnchor[:, :, :, :, 0])/(absoluteAnchorH + 1e-8)
+    #self.check_gtTy = tf.check_numerics(self.gtTy, "gtTy value error")
+    #self.subGtTy = tf.gather_nd(self.gtTy, posIdx)
+
+    #self.gtTx = (self.absoluteBB[:, :, :, :, 1]-self.absoluteAnchor[:, :, :, :, 1])/(absoluteAnchorW + 1e-8)
+    #self.check_gtTx = tf.check_numerics(self.gtTx, "gtTx value error")
+    #self.subGtTx = tf.gather_nd(self.gtTx, posIdx)
+
+    #self.gtTh = tf.log(((self.absoluteBB[:, :, :, :, 2] - self.absoluteBB[:, :, :, :, 0])/(absoluteAnchorH + 1e-8))+1e-8)
+    #self.check_gtTh = tf.check_numerics(self.gtTh, "gtTh value error")
+    #self.subGtTh = tf.gather_nd(self.gtTh, posIdx)
+
+    #self.gtTw = tf.log(((self.absoluteBB[:, :, :, :, 3] - self.absoluteBB[:, :, :, :, 1])/(absoluteAnchorW + 1e-8))+1e-8)
+    #self.check_gtTw = tf.check_numerics(self.gtTw, "gtTh value error")
+    #self.subGtTw = tf.gather_nd(self.gtTw, posIdx)
+
+    #self.wrtBBGt = tf.pack([self.check_gtTy, self.check_gtTx, self.check_gtTh, self.check_gtTw], 4)
+
+    #self.wrtBBGt = tf.pack([self.gtTy, self.gtTx, self.gtTh, self.gtTw], 4)
+
+
+
+
 #bbs and scores should be a list of length batchSize
 #bbs items should be [numBB, 4]
 #scores items should be [numBB]
-def calcBatchBB(bbs, scores, detConfThreshold, numBB):
+def calcBatchBB(bbs, scores, detConfThreshold, numBB, batchSize):
     outBBList = []
-    for (batchBB, batchScores) in zip(bbs, scores):
+    for b in range(batchSize):
+        batchBB = bbs[b]
+        batchScores = scores[b]
         posBB = calcBB(batchBB, batchScores, detConfThreshold)
         #Pad or crop to have exactly numBB of bbs
         #Expand into image shape, and spoof as image to pad/crop into numBB
@@ -20,6 +125,15 @@ def calcBatchBB(bbs, scores, detConfThreshold, numBB):
     #Outputs [batch, numBB, 4]
     return tf.pack(outBBList, 0)
 
+def calcBestBatchBB(bbs, scores, numBest, batchSize):
+    topBBList = []
+    for b in range(batchSize):
+        batchBB = bbs[b]
+        batchScores = bbs[b]
+        (topVal, topIdx) = tf.nn.top_k(batchScores, k=numBest)
+        topBBList.append(tf.gather(batchBB, topIdx))
+    return tf.pack(topBBList, 0)
+
 #Note that this assumes objVals and bbVals are from 1 batch
 #i.e. 4 dimensional in [y, x, window, 2] and [y, x, windows, 4] respectively
 #Returns 2 lists, one for output bbs and one for the score of each bb
@@ -29,7 +143,7 @@ def runNms(objVals, bbVals, maxNumBB, nms_iou_threshold=None):
     nmsIdx = tf.image.non_max_suppression(bbs, scores, maxNumBB, iou_threshold=nms_iou_threshold)
     outBbs = tf.gather(bbs, nmsIdx)
     outScores = tf.gather(scores, nmsIdx)
-    return (outBbs, outScores)
+    return (outBbs, outScores, nmsIdx)
 
 #bb should be [numBB, 4]
 #scores should be [numBB]
@@ -38,15 +152,13 @@ def calcBB(bb, score, detConfThreshold):
     posBB = tf.gather_nd(bb, posBBIdx)
     return posBB
 
-def calcPvR(estObj, estBB, gtObj, gtBB, batchSize, maxNumBB, det_iou_threshold, nms=True, nms_iou_threshold=0.5):
-
-    precision = []
-    recall = []
+#estBB and gtBB is a tensor (or a list of tensors) with the dimensions [batch, numCandidate, 4]
+#4 gt boxes should be [ymin, xmin, ymax, xmax]
+def calcIou(estBB, gtBB, batchSize):
     for b in range(batchSize):
-        bEstObj = estObj[b, :, :, :, :]
-        bEstBB = estBB[b, :, :, :, :]
-        bGtObj = gtObj[b, :, :, :, :]
-        bGtBB = gtBB[b, :, :, :, :]
+        bEstBB = estBB[b]
+        bGtBB = gtBB[b]
+        #TODO here
 
         gtProposals = calcBB(bGtObj, bGtBB, 0.5, maxNumBB, nms=False)
         expandGtProposals = tf.expand_dims(gtProposals, 0)

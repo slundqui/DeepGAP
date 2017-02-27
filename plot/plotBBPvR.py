@@ -7,7 +7,64 @@ import pdb
 #outScore is [numOutBB]
 #outBB is [numOutBB, 4]
 #gtBB is [numGtBB, 4]
-def plotBBPvRBatch(outScores, outBBs, gtBBs, iouDetThreshold, filenamePrefix, numThresholds=50):
+def plotBBPvRBatch(outScores, outBBs, gtBBs, iouDetThreshold, filenamePrefix):
+    numImages = len(outScores)
+    assert(numImages == len(outBBs))
+    assert(numImages == len(gtBBs))
+
+    numThresholds = 100
+
+    tp = np.zeros((numThresholds,))
+    fp = np.zeros((numThresholds,))
+    totalGT = 0
+    for b in range(numImages):
+        (numGT, drop) = gtBBs[b].shape
+        (outTp, outFp, outNumCandidate) = calcMetric(outScores[b], outBBs[b], gtBBs[b], iouDetThreshold, numThresholds)
+        (numCandidates, drop) = outBBs[b].shape
+        tp += outTp
+        fp += outFp
+        totalGT += numGT
+
+    #Calculate precision and recall
+    precision = tp/(tp+fp)
+    #If no selected items, set precision to 1
+    precision[np.nonzero(tp+fp == 0)] = 1
+    recall = tp/totalGT
+
+    f1 = 2*((precision * recall)/(precision + recall))
+    #Change nans to 0
+    f1[np.nonzero(np.logical_not(np.isfinite(f1)))] = 0
+
+    bestF1Idx = np.argmax(f1)
+    thresholds = np.linspace(0, 1, num=numThresholds)
+    bestThresh = thresholds[bestF1Idx]
+
+    auc = 0
+    for i in range(numThresholds-1):
+        #height of trap is delta recall
+        #a and b are precision
+        dRecall = np.abs(recall[i] - recall[i+1])
+        a = precision[i]
+        b = precision[i+1]
+        auc += ((a+b)/2) * dRecall
+
+    f = plt.figure()
+    plt.plot(recall, precision, linewidth=4)
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+
+    plt.xlabel("Recall", fontsize=20)
+    plt.ylabel("Precision", fontsize=20)
+    plt.title("Precision Vs Recall", fontsize = 30)
+    threshStr = "%.2f" % bestThresh
+    aucStr = "%.2f" % auc
+    t = plt.text(.8, .8, 'bestT: ' + threshStr + "\nauc: " + aucStr, fontsize=12)
+    filename = filenamePrefix + "_pvr.png"
+    plt.savefig(filename, bbox_inches='tight', bbox_extra_artists=(t,))
+    plt.close(f)
+    return (precision, recall, f1, bestThresh)
+
+def plotBBPvRBatch_Obsolete(outScores, outBBs, gtBBs, iouDetThreshold, filenamePrefix):
     print "Plotting PvR"
     batchSize = len(outScores)
     assert(batchSize == len(outBBs))
@@ -34,6 +91,8 @@ def plotBBPvRBatch(outScores, outBBs, gtBBs, iouDetThreshold, filenamePrefix, nu
     fp = np.zeros((numCandidate,))
 
     for iout, outBB in enumerate(sortOutBB):
+        if(iout % 100 == 0):
+            print iout, "out of", len(sortOutBB)
         (imageIdx, outYmin, outXmin, outYmax, outXmax) = outBB
         outArea = (outYmax - outYmin)*(outXmax-outXmin)
         imageIdx = int(imageIdx)
@@ -75,9 +134,12 @@ def plotBBPvRBatch(outScores, outBBs, gtBBs, iouDetThreshold, filenamePrefix, nu
     recall = cumTp.astype(np.float32)/numGT
     precision = cumTp.astype(np.float32)/(cumTp+cumFp)
 
-    f1 = 2*(precision * recall)/(precision + recall)
+    f1 = 2*((precision * recall)/(precision + recall))
+    #Change nans to 0
+    f1[np.nonzero(np.logical_not(np.isfinite(f1)))] = 0
+
     bestF1Idx = np.argmax(f1)
-    bestThresh = sortScore[bestF1Idx+1]
+    bestThresh = sortScore[bestF1Idx]
 
     #TODO calculate area under curve
     auc = 0
@@ -88,25 +150,6 @@ def plotBBPvRBatch(outScores, outBBs, gtBBs, iouDetThreshold, filenamePrefix, nu
         a = precision[i]
         b = precision[i+1]
         auc += ((a+b)/2) * dRecall
-
-
-    #pdb.set_trace()
-
-    #tp = np.zeros((numThresholds,))
-    #fp = np.zeros((numThresholds,))
-    #fn = np.zeros((numThresholds,))
-    #for b in range(batchSize):
-    #    (outTp, outFp, outFn) = calcMetric(outScore[b], outBB[b], gtBB[b], iouDetThreshold, numThresholds)
-    #    tp += outTp
-    #    fp += outFp
-    #    fn += outFn
-
-    ##Calculate precision and recall
-    #precision = tp/(tp+fp)
-    ##If no selected items, set precision to 1
-    #precision[np.nonzero(tp+fp == 0)] = 1
-    #recall = tp/(tp+fn)
-    ##TODO calculate area under PvR
 
     f = plt.figure()
     plt.plot(recall, precision, linewidth=4)
@@ -135,7 +178,6 @@ def calcMetric(outScore, outBB, gtBB, iouDetThreshold, numThresholds=50):
     outArea = (e_outBB[:, :, 2] - e_outBB[:, :, 0]) * (e_outBB[:, :, 3] - e_outBB[:, :, 1])
     gtArea = (e_gtBB[:, :, 2] - e_gtBB[:, :, 0]) * (e_gtBB[:, :, 3] - e_gtBB[:, :, 1])
 
-
     #np.maximum/minimum broadcasts the dimension into the singleton dimension
     intYMin = np.maximum(e_outBB[:, :, 0], e_gtBB[:, :, 0])
     intYMax = np.minimum(e_outBB[:, :, 2], e_gtBB[:, :, 2])
@@ -149,35 +191,45 @@ def calcMetric(outScore, outBB, gtBB, iouDetThreshold, numThresholds=50):
 
     iou = intArea/unionArea
 
+    (numGt, drop) = gtBB.shape
+
     #Make sure outScore is in the range of 0 and 1
     assert(np.max(outScore) <= 1)
     assert(np.min(outScore) >= 0)
 
     outTp = np.zeros((numThresholds,))
     outFp = np.zeros((numThresholds,))
-    outFn = np.zeros((numThresholds,))
+    outNumCandidate = np.zeros((numThresholds,))
     #We now select specific outBBs based on scores and calculate pvr
     for i, t in enumerate(np.linspace(0, 1, num=numThresholds)):
         detIdx = np.nonzero(outScore > t)
         detIou = iou[detIdx[0], :]
-        #This is a boolean matrix determining if considered a detection
-        boolIou = detIou >= iouDetThreshold
+        outNumCandidate[i] = len(detIdx[0])
 
-        #From this, we calculate tp, fp, and fn
-        #TP: out of all GT boxes, count the number of gtBoxes that overlap sufficiently
-        #with at least one candidate bb
-        tp = np.sum(np.any(boolIou, axis=0))
-        #FP: out of all candidate BB, count number of candidateBB that does not overlap
-        #with any GT BB
-        fp = np.sum(np.all(np.logical_not(boolIou), axis=1))
-        #FN: out of all GT BB, count the number of gtBB that does not overlap with
-        #any candidate BB
-        fn = np.sum(np.all(np.logical_not(boolIou), axis=0))
+        #Vector of length numCanididate that contains the gt idx of the max iou
+        (drop, numDet) = detIou.shape
+        if(numDet != 0):
+            maxIouVal = np.max(detIou, axis=1)
+            maxIouIdx = np.argmax(detIou, axis=1)
+        else:
+            maxIouVal = np.zeros((numGt,))
+            maxIouIdx = np.zeros((numGt,))
 
-        outTp[i] = tp
-        outFp[i] = fp
-        outFn[i] = fn
-    return (outTp, outFp, outFn)
+        gtDet = [False for j in range(numGt)]
+        for iouVal, iouIdx in zip(maxIouVal, maxIouIdx):
+            if (iouVal >= iouDetThreshold):
+                if(gtDet[iouIdx] is False):
+                    outTp[i] += 1
+                    gtDet[iouIdx] = True
+                #Duplicate canidate bb
+                else:
+                    outFp[i] += 1
+            #Insufficient iou
+            else:
+                outFp[i] += 1
+
+
+    return (outTp, outFp, outNumCandidate)
 
 
 

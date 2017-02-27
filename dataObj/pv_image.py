@@ -361,10 +361,10 @@ class kittiVidPvObj(pvObj):
             newGt = np.zeros((numExample, self.gtShape[0], self.gtShape[1], self.gtShape[2], 2))
             (outData, outGt, outImg) = out
             numAllClasses = self.gtShape[3]
-            classGt = outGt[:, :, :, :, self.binClass]
+            classGt = np.transpose(np.array(outGt), [1, 0, 2, 3, 4])[:, :, :, :, tuple(self.binClass)]
             newGt[:, :, :, :, 1] = classGt.max(4)
             #Set distractor class to be oposite of target class
-            newGt[:, :, :, :, 0] = 1 - newGt[:, :, :, :, 1]
+            newGt[:, :, :, :, 0] = 1 - newGt[:,:, :, :, 1]
             return (outData, newGt, outImg)
         else:
             return out

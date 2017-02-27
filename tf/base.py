@@ -20,9 +20,9 @@ class TFObj(object):
 
         #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpuPercent)
         #config = tf.ConfigProto(gpu_options=gpu_options)
-        config = tf.ConfigProto()
 
-        #config.gpu_options.allow_growth=True
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth=True
         config.allow_soft_placement=True
         self.sess = tf.Session(config=config)
         self.buildModel(inputShape)
@@ -56,6 +56,7 @@ class TFObj(object):
         self.idxToName = params['idxToName']
         self.preTrain = params['preTrain']
 
+
     #Make approperiate directories if they don't exist
     def makeDirs(self):
         if not os.path.exists(self.runDir):
@@ -74,8 +75,9 @@ class TFObj(object):
                plot = False
            if(testDataObj):
                #Evaluate test frame, providing gt so that it writes to summary
-               data = testDataObj.getData(self.batchSize)
-               self.evalModel(data[0], data[1], plot=plot)
+               #data = testDataObj.getData(self.batchSize)
+               #self.evalModel(data[0], data[1], plot=plot)
+               self.evalModelBatch(testDataObj, plot)
                print "Done test eval"
            #Train
            if(i%self.savePeriod == 0):
