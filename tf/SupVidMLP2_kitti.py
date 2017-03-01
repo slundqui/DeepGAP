@@ -27,6 +27,7 @@ class SupVidMLP2_kitti(TFObj):
         self.resLoad = params['resLoad']
         self.stereo = params['stereo']
         self.time = params['time']
+        self.numFeatures = params['numFeatures']
 
     def defineVars(self):
         #Define all variables outside of scope
@@ -39,14 +40,14 @@ class SupVidMLP2_kitti(TFObj):
         else:
             numTimeInputs = 1
 
-        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, 3072], "hidden_weight")
-        self.h_bias = bias_variable([3072], "hidden_bias")
+        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, self.numFeatures], "hidden_weight")
+        self.h_bias = bias_variable([self.numFeatures], "hidden_bias")
 
-        self.conv1_w = weight_variable([1, 1, 3072, 3072], "conv1_w", 1e-6)
-        self.conv1_b = weight_variable([3072], "conv1_b", 1e-6)
-        self.conv2_w = weight_variable([1, 1, 3072, 3072], "conv2_w", 1e-6)
-        self.conv2_b = weight_variable([3072], "conv2_b", 1e-6)
-        self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
+        self.conv1_w = weight_variable([1, 1, self.numFeatures, self.numFeatures], "conv1_w", 1e-6)
+        self.conv1_b = weight_variable([self.numFeatures], "conv1_b", 1e-6)
+        self.conv2_w = weight_variable([1, 1, self.numFeatures, self.numFeatures], "conv2_w", 1e-6)
+        self.conv2_b = weight_variable([self.numFeatures], "conv2_b", 1e-6)
+        self.class_weight = weight_variable_xavier([1, 1, self.numFeatures, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias" )
 
     #Builds the model. inMatFilename should be the vgg file
@@ -241,7 +242,7 @@ class SupVidMLP2_kitti(TFObj):
         tf.histogram_summary('class_bias', self.class_bias, name="class_bias_vis")
 
     def getLoadVars(self):
-        v = tf.all_variables()
+        v = tf.global_variables()
         if(self.resLoad):
             #Load first and 3rd layers
             v = [var for var in v if ("hidden_weight" in var.name) or ("hidden_bias" in var.name) or ("conv1_w" in var.name) or ("conv1_b" in var.name) or ("class_weight" in var.name) or ("class_bias" in var.name)]

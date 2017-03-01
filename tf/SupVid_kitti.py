@@ -5,7 +5,9 @@ from loadVgg import loadWeights
 from utils import *
 import os
 from plot.viewCam import plotDetCam
-from plot.plotWeights import plot_weights
+#from plot.plotWeights import plot_weights
+from TFSparseCode.plot.plotWeights import plot_weights
+
 from base import TFObj
 import scipy.sparse as sp
 #import matplotlib.pyplot as plt
@@ -26,6 +28,8 @@ class SupVid_kitti(TFObj):
         self.regWeight = params['regWeight']
         self.stereo = params['stereo']
         self.time = params['time']
+        self.numFeatures = params['numFeatures']
+        self.plotInd = params['plotInd']
 
     def defineVars(self):
         #Define all variables outside of scope
@@ -39,9 +43,9 @@ class SupVid_kitti(TFObj):
             numTimeInputs = 1
 
         #Define all variables outside of scope
-        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, 3072], "hidden_weight")
-        self.h_bias = bias_variable([3072], "hidden_bias")
-        self.class_weight = weight_variable_xavier([1, 1, 3072, self.numClasses], "class_weight")
+        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, self.numFeatures], "hidden_weight")
+        self.h_bias = bias_variable([self.numFeatures], "hidden_bias")
+        self.class_weight = weight_variable_xavier([1, 1, self.numFeatures, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias" )
 
     #Builds the model. inMatFilename should be the vgg file
@@ -201,7 +205,7 @@ class SupVid_kitti(TFObj):
         tf.histogram_summary('class_bias', self.class_bias, name="class_bias_vis")
 
     def getLoadVars(self):
-        v = tf.all_variables()
+        v = tf.global_variables()
         return v
 
     #Trains model for numSteps
@@ -252,25 +256,26 @@ class SupVid_kitti(TFObj):
 
     def evalAndPlotWeights(self, feedDict, prefix):
         np_weights = self.sess.run(self.h_weight, feed_dict=feedDict)
+        np_act = self.sess.run(h_hidden, feed_dict=feedDict)
         (ntime, ny, nx, nfns, nf) = np_weights.shape
         if(self.stereo):
-            np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, 3, 2, nf))
+            np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, nfns/2, 2, nf))
             for s in range(2):
                 filename = prefix
                 if(s == 0):
-                    outFilename = filename + "_left"
+                    filename = filename + "_left"
                 elif(s == 1):
-                    outFilename = filename + "_right"
+                    filename = filename + "_right"
                 for t in range(ntime):
-                    outFilename += "_time" + str(t) + ".png"
+                    outFilename = filename + "_time" + str(t) + ".png"
                     plotWeights = np_weights_reshape[t, :, :, :, s, :]
-                    plot_weights(plotWeights, outFilename, [3, 0, 1, 2])
+                    plot_weights(plotWeights, outFilename, [3, 0, 1, 2], np_act, plotInd=self.plotInd)
         else:
             filename = prefix
             for t in range(ntime):
                 outFilename = filename + "_time" + str(t) + ".png"
                 plotWeights = np_weights[t, :, :, :, :]
-                plot_weights(plotWeights, outFilename, [3, 0, 1, 2])
+                plot_weights(plotWeights, outFilename, [3, 0, 1, 2], np_act, plootInd=self.plotInd)
 
 
     #def evalAndPlotCam(self, feedDict, data, gt, prefix):
@@ -328,13 +333,14 @@ class SupVid_kitti(TFObj):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)
         if(plot):
-            filename = self.plotDir + "test_" + str(self.timestep)
-            if(self.gtSparse):
-                gt = np.reshape(inGt.toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
-            else:
-                gt = inGt
-            data = (inData, inGt, inImg)
+            #filename = self.plotDir + "test_" + str(self.timestep)
+            #if(self.gtSparse):
+            #    gt = np.reshape(inGt.toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
+            #else:
+            #    gt = inGt
+            #data = (inData, inGt, inImg)
             #self.evalAndPlotCam(feedDict, data, gt, filename)
+            pass
 
         return outVals
 
