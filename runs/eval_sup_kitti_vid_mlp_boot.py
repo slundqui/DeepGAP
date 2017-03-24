@@ -30,7 +30,7 @@ dncFilenames= [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
 
-trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_4000.txt"
 testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
@@ -44,14 +44,14 @@ testf.close()
 testRange = [int(l) for l in testLines]
 
 #Get object from which tensorflow will pull data from
-trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange)
-testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=False, rangeIdx=testRange)
+trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange, binClass=[1, 2, 3])
+testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=False, rangeIdx=testRange, binClass = [1, 2, 3])
 
 stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_sup_kitti_vid_4x8_boot_1/",
+    'runDir':          "/eval_sup_kitti_vid_4x8_boot_1_bin_4000/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -66,9 +66,9 @@ stage1_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_4000/checkpoints/save-model-10100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      302, #1000000,
@@ -89,6 +89,11 @@ stage1_params = {
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
     'regWeight': 0,
+    'stereo': True,
+    'time': True,
+    'numFeatures': 3072,
+    'plotInd': False,
+    'plotFM': False,
 }
 
 #Allocate tensorflow object
@@ -107,7 +112,7 @@ stage2_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_sup_kitti_vid_4x8_boot_2/",
+    'runDir':          "/eval_sup_kitti_vid_4x8_boot_2_bin_4000/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -122,9 +127,9 @@ stage2_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2_bin_4000/checkpoints/save-model-10100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      302, #1000000,
@@ -146,6 +151,11 @@ stage2_params = {
     'gtSparse': False,
     'regWeight': 0,
     'resLoad': False,
+    'stereo': True,
+    'time': True,
+    'numFeatures': 3072,
+    'plotInd': False,
+    'plotFM': False,
 }
 
 #Allocate tensorflow object
@@ -164,7 +174,7 @@ stage3_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_sup_kitti_vid_4x8_boot_3/",
+    'runDir':          "/eval_sup_kitti_vid_4x8_boot_3_bin_4000/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -179,9 +189,9 @@ stage3_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3_bin_4000/checkpoints/save-model-10100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #Num iterations
     'outerSteps':      1002, #1000000,
     'innerSteps':      100, #300,
@@ -202,6 +212,11 @@ stage3_params = {
     'gtSparse': False,
     'regWeight': 0,
     'resLoad': False,
+    'stereo': True,
+    'time': True,
+    'numFeatures': 3072,
+    'plotInd': False,
+    'plotFM': False,
 }
 
 #Allocate tensorflow object

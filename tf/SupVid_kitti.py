@@ -5,14 +5,19 @@ from loadVgg import loadWeights
 from utils import *
 import os
 from plot.viewCam import plotDetCam
-#from plot.plotWeights import plot_weights
-from TFSparseCode.plot.plotWeights import plot_weights
+from plot.plotFeaturemaps import plotFeaturemaps
+from plot.plotWeights import plot_weights
 
 from base import TFObj
 import scipy.sparse as sp
 #import matplotlib.pyplot as plt
 
 class SupVid_kitti(TFObj):
+
+    def makeDirs(self):
+        super(SupVid_kitti, self).makeDirs()
+        makeDir(self.weightDir)
+        makeDir(self.featureMapDir)
 
     #Sets dictionary of params to member variables
     def loadParams(self, params):
@@ -30,6 +35,10 @@ class SupVid_kitti(TFObj):
         self.time = params['time']
         self.numFeatures = params['numFeatures']
         self.plotInd = params['plotInd']
+        self.plotFM = params['plotFM']
+
+        self.weightDir = self.plotDir + "/weight/"
+        self.featureMapDir = self.plotDir + "/featuremap/"
 
     def defineVars(self):
         #Define all variables outside of scope
@@ -182,30 +191,29 @@ class SupVid_kitti(TFObj):
         (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=numK)
 
         #Summaries
-        tf.scalar_summary('loss', self.loss, name="accuracy")
-        tf.scalar_summary('accuracy', self.accuracy, name="accuracy")
+        tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('accuracy', self.accuracy)
         for c in range(self.numClasses):
             className = self.idxToName[c]
-            tf.scalar_summary(className+' F1', self.classF1[c])
+            tf.summary.scalar(className+' F1', self.classF1[c])
 
-        tf.histogram_summary('input', self.inputImage, name="image_vis")
-        tf.histogram_summary('inputPooled', self.inputPooled, name="image_vis")
-        tf.histogram_summary('gt', self.select_gt, name="gt_vis")
+        tf.summary.histogram('input', self.inputImage)
+        tf.summary.histogram('inputPooled', self.inputPooled)
+        tf.summary.histogram('gt', self.select_gt)
         #Conv layer histograms
-        tf.histogram_summary('h_conv', self.h_conv, name="conv1_vis")
-        tf.histogram_summary('h_hidden', self.h_hidden, name="hidden_vis")
-        tf.histogram_summary('h_norm_hidden', self.h_hidden, name="norm_hidden_vis")
-        tf.histogram_summary('est', self.est, name="est_vis")
+        tf.summary.histogram('h_conv', self.h_conv)
+        tf.summary.histogram('h_hidden', self.h_hidden)
+        tf.summary.histogram('h_norm_hidden', self.h_hidden)
+        tf.summary.histogram('est', self.est)
         #Weight and bias hists
-        tf.histogram_summary('h_weight', self.h_weight, name="weight_vis")
-        tf.histogram_summary('h_bias', self.h_bias, name="bias_vis")
-        #tf.histogram_summary('h_beta', self.beta, name="beta_vis")
-        #tf.histogram_summary('h_gamma', self.gamma, name="gamma_vis")
-        tf.histogram_summary('class_weight', self.class_weight, name="class_weight_vis")
-        tf.histogram_summary('class_bias', self.class_bias, name="class_bias_vis")
+        tf.summary.histogram('h_weight', self.h_weight)
+        tf.summary.histogram('h_bias', self.h_bias)
+        tf.summary.histogram('class_weight', self.class_weight)
+        tf.summary.histogram('class_bias', self.class_bias)
 
     def getLoadVars(self):
-        v = tf.global_variables()
+        v = tf.all_variables()
+        v = [var for var in v if ("Adam" not in var.name)]
         return v
 
     #Trains model for numSteps
@@ -244,38 +252,58 @@ class SupVid_kitti(TFObj):
             save_path = self.saver.save(self.sess, self.saveFile, global_step=self.timestep, write_meta_graph=False)
             print("Model saved in file: %s" % save_path)
         if(plot):
-            filename = self.plotDir + "train_" + str(self.timestep)
+            suffix = "train_" + str(self.timestep)
             gtShape = dataObj.gtShape
             if(self.gtSparse):
                 gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
             else:
                 gt = data[1]
             print "Plotting"
-            self.evalAndPlotWeights(feedDict, filename)
+            self.evalAndPlotWeights(feedDict, self.weightDir + suffix)
+
+            #if(self.plotFM):
+            #    self.evalAndPlotFeaturemaps(feedDict, filename):
+
             #self.evalAndPlotCam(feedDict, data, gt, filename)
 
     def evalAndPlotWeights(self, feedDict, prefix):
         np_weights = self.sess.run(self.h_weight, feed_dict=feedDict)
-        np_act = self.sess.run(h_hidden, feed_dict=feedDict)
+        np_act = self.sess.run(self.h_hidden, feed_dict=feedDict)
         (ntime, ny, nx, nfns, nf) = np_weights.shape
         if(self.stereo):
             np_weights_reshape = np.reshape(np_weights, (ntime, ny, nx, nfns/2, 2, nf))
             for s in range(2):
-                filename = prefix
                 if(s == 0):
-                    filename = filename + "_left"
+                    suffix = "_left"
                 elif(s == 1):
-                    filename = filename + "_right"
+                    suffix = "_right"
                 for t in range(ntime):
-                    outFilename = filename + "_time" + str(t) + ".png"
                     plotWeights = np_weights_reshape[t, :, :, :, s, :]
-                    plot_weights(plotWeights, outFilename, [3, 0, 1, 2], np_act, plotInd=self.plotInd)
+                    plot_weights(plotWeights, prefix, suffix+"_time"+str(t), [3, 0, 1, 2], np_act, plotInd=self.plotInd)
         else:
-            filename = prefix
             for t in range(ntime):
-                outFilename = filename + "_time" + str(t) + ".png"
+                suffix = "_time" + str(t)
                 plotWeights = np_weights[t, :, :, :, :]
-                plot_weights(plotWeights, outFilename, [3, 0, 1, 2], np_act, plootInd=self.plotInd)
+                plot_weights(plotWeights, prefix, suffix, [3, 0, 1, 2], np_act, plotInd=self.plotInd)
+
+    def evalAndPlotFeaturemaps(self, feedDict, prefix):
+        print "Plotting featuremaps"
+        #np_act = self.sess.run(self.h_hidden, feed_dict=feedDict)
+
+        np_act = self.sess.run(self.h_hidden, feed_dict=feedDict) - 5.5
+        #Set all negative activites to 0
+        np_act[np.nonzero(np_act < 0)] = 0
+
+        np_inputImage = feedDict[self.inputImage]
+        #We only care about the left last frame
+        #TODO make the indices general
+        np_act = np_act[:, 1, :, :, :]
+        if(self.stereo):
+            np_inputImage = np_inputImage[:, 4, :, :, :]
+        else:
+            np_inputImage = np_inputImage[:, 2, :, :, :]
+
+        plotFeaturemaps(np_act, np_inputImage, prefix, r=[2])
 
 
     #def evalAndPlotCam(self, feedDict, data, gt, prefix):
@@ -333,14 +361,15 @@ class SupVid_kitti(TFObj):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)
         if(plot):
-            #filename = self.plotDir + "test_" + str(self.timestep)
+            filename = self.featureMapDir + "test_" + str(self.timestep)
             #if(self.gtSparse):
             #    gt = np.reshape(inGt.toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
             #else:
             #    gt = inGt
             #data = (inData, inGt, inImg)
             #self.evalAndPlotCam(feedDict, data, gt, filename)
-            pass
+            if(self.plotFM):
+                self.evalAndPlotFeaturemaps(feedDict, filename)
 
         return outVals
 
