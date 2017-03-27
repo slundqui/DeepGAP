@@ -2,7 +2,11 @@ import numpy as np
 import tensorflow as tf
 import pdb
 from scipy import sparse
+import os
 
+def makeDir(dirname):
+    if not os.path.exists(dirname):
+       os.makedirs(dirname)
 
 #Conversion tools for bbs
 #Both tensors can be any shape, with the size of the last dimension as 4

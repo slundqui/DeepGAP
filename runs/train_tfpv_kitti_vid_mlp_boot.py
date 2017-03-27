@@ -47,7 +47,7 @@ stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/tfpv_kitti_vid_4x8_boot_1_bin_less/",
+    'runDir':          "/tfpv_kitti_vid_4x8_boot_1_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -64,7 +64,7 @@ stage1_params = {
     'load':            False,
     'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_mlp_fromslp_noreg.ckpt",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      302, #1000000,
@@ -101,7 +101,7 @@ stage2_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/tfpv_kitti_vid_4x8_boot_2_bin_less/",
+    'runDir':          "/tfpv_kitti_vid_4x8_boot_2_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -116,9 +116,9 @@ stage2_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_less/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_run3/checkpoints/save-model-30100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      302, #1000000,
@@ -157,7 +157,7 @@ stage3_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/tfpv_kitti_vid_4x8_boot_3_bin_less/",
+    'runDir':          "/tfpv_kitti_vid_4x8_boot_3_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -172,11 +172,11 @@ stage3_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_less/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_run3/checkpoints/save-model-10100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #Num iterations
-    'outerSteps':      1002, #1000000,
+    'outerSteps':      300, #1000000,
     'innerSteps':      100, #300,
     #Batch size
     'batchSize':       16,
@@ -194,6 +194,8 @@ stage3_params = {
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
     'inputScale': 50,
+    'regWeight': 0,
+    'resLoad': True,
     'regWeight': 0,
     'resLoad': True,
 }

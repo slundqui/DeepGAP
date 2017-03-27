@@ -170,36 +170,35 @@ class MLPVid2(TFObj):
         (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=numK)
 
         #Summaries
-        tf.scalar_summary('loss', self.loss, name="loss")
-        tf.scalar_summary('accuracy', self.accuracy, name="accuracy")
+        tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('accuracy', self.accuracy)
         for c in range(self.numClasses):
             className = self.idxToName[c]
-            tf.scalar_summary(className+' F1', self.classF1[c])
+            tf.summary.scalar(className+' F1', self.classF1[c])
 
-        tf.histogram_summary('input', self.inputImage, name="image_vis")
-        tf.histogram_summary('inputPooled', self.inputPooled, name="image_vis")
-        tf.histogram_summary('gt', self.select_gt, name="gt_vis")
+        tf.summary.histogram('input', self.inputImage)
+        tf.summary.histogram('inputPooled', self.inputPooled)
+        tf.summary.histogram('gt', self.select_gt)
         #Conv layer histograms
-        tf.histogram_summary('h_conv1', self.h_conv1, name="conv1_vis")
-        #tf.histogram_summary('h_norm_conv1', self.h_norm_conv1, name="norm_conv1_vis")
-        tf.histogram_summary('h_conv2', self.h_conv2, name="conv2_vis")
-        tf.histogram_summary('h_conv3', self.h_conv3, name="conv3_vis")
-        tf.histogram_summary('est', self.est, name="est_vis")
+        tf.summary.histogram('h_conv1', self.h_conv1)
+        tf.summary.histogram('h_conv2', self.h_conv2)
+        tf.summary.histogram('h_conv3', self.h_conv3)
+        tf.summary.histogram('est', self.est)
         #Weight and bias hists
-
-        tf.histogram_summary('conv1_w', self.conv1_w, name="conv1_w_vis")
-        tf.histogram_summary('conv1_b', self.conv1_b, name="conv1_b_vis")
-        tf.histogram_summary('conv2_w', self.conv2_w, name="conv2_w_vis")
-        tf.histogram_summary('conv2_b', self.conv2_b, name="conv2_b_vis")
-        tf.histogram_summary('class_weight', self.class_weight, name="conv3_w_vis")
-        tf.histogram_summary('class_bias', self.class_bias, name="conv3_b_vis")
+        tf.summary.histogram('conv1_w', self.conv1_w)
+        tf.summary.histogram('conv1_b', self.conv1_b)
+        tf.summary.histogram('conv2_w', self.conv2_w)
+        tf.summary.histogram('conv2_b', self.conv2_b)
+        tf.summary.histogram('class_weight', self.class_weight)
+        tf.summary.histogram('class_bias', self.class_bias)
 
 
     def getLoadVars(self):
-        v = tf.all_variables()
+        v = tf.global_variables()
         if(self.resLoad):
-            v = [var for var in v if ("class_weight" in var.name) or ("class_bias" in var.name) or
-                    ("conv1" in var.name)]
+            v = [var for var in v if (("class_weight" in var.name) or ("class_bias" in var.name) or ("conv1" in var.name)) and ("Adam" not in var.name)]
+        else:
+            v = [var for var in v if ("Adam" not in var.name)]
         return v
 
     #Trains model for numSteps

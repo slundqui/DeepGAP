@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.misc as spmisc
 import pdb
+from tf.utils import makeDir
 
 def plot_weights_time(weights_matrix, outPrefix):
     assert(weights_matrix.ndim == 5)
@@ -15,7 +17,8 @@ def plot_weights_time(weights_matrix, outPrefix):
         plot_weights(weights_matrix[t, :, :, :, :], outFilename, order=[2, 0, 1, 3])
 
 #Order defines the order in weights_matrix for num_weights, y, x, f
-def plot_weights(weights_matrix, outFilename, order=[0, 1, 2, 3]):
+def plot_weights(weights_matrix, outDir, suffix, order=[0, 1, 2, 3], v1Rank=None, plotInd = False):
+    print "Creating plot"
     assert(weights_matrix.ndim == 4)
     num_weights = weights_matrix.shape[order[0]]
     patch_y = weights_matrix.shape[order[1]]
@@ -28,14 +31,38 @@ def plot_weights(weights_matrix, outFilename, order=[0, 1, 2, 3]):
         permute_weights = weights_matrix.copy()
         permute_weights = np.transpose(weights_matrix, order)
 
+    if v1Rank is not None:
+        #Flatten and count v1
+        axis = () #empty tuple
+        for i in range(v1Rank.ndim-1):
+            axis += (i,)
+        rankVals = np.sum(v1Rank, axis=axis)
+        rankIdx = np.argsort(rankVals)[::-1]
+        #Make val histogram
+        x = range(num_weights)
+        y = [rankVals[i] for i in rankIdx]
+        fig = plt.figure()
+        plt.bar(x, y)
+        plt.savefig(outDir+suffix+"_v1Hist.png", bbox_inches='tight')
+        plt.close(fig)
+
     subplot_x = int(np.ceil(np.sqrt(num_weights)))
     subplot_y = int(np.ceil(num_weights/float(subplot_x)))
-    weights_list = list()
 
     outWeightMat = np.zeros((patch_y*subplot_y, patch_x*subplot_x, patch_f)).astype(np.float32)
 
+    if v1Rank is not None:
+        rangeWeight = rankIdx;
+    else:
+        rangeWeight = range(num_weights)
+
+    if(plotInd):
+        indOutDir = outDir + "/ind/"
+        makeDir(indOutDir)
+
     #Normalize each patch individually
     for weight in range(num_weights):
+        weightIdx = rangeWeight[weight]
         weight_y = weight/subplot_x
         weight_x = weight%subplot_x
 
@@ -45,17 +72,35 @@ def plot_weights(weights_matrix, outFilename, order=[0, 1, 2, 3]):
         startIdx_y = weight_y*patch_y
         endIdx_y = startIdx_y+patch_y
 
-        weight_patch = permute_weights[weight, :, :, :]
+        weight_patch = permute_weights[weightIdx, :, :, :].astype(np.float32)
 
-        scale_factor = (weight_patch.max() - weight_patch.min())
-        weight_patch = (weight_patch.astype(np.float32) - weight_patch.min()) / scale_factor
+        #weight_patch = weight_patch - np.mean(weight_patch)
+        #Find max magnitude
+        scaleVal = np.max([np.fabs(weight_patch.max()), np.fabs(weight_patch.min())])
+        #Scale to be between -1 and 1
+        weight_patch = weight_patch / scaleVal
+        #Set scale to be between 0 and 1, with 0 in orig weight_patch to be .5
+        weight_patch = (weight_patch + 1)/2
+
+        if plotInd:
+            if v1Rank is None:
+                saveStr = indOutDir + suffix + "_weight_" + str(weightIdx) + ".png"
+            else:
+                saveStr = indOutDir + suffix + "_rank_" + str(weight) + "_weight_" + str(weightIdx) + ".png"
+            print saveStr
+            spmisc.imsave(saveStr, weight_patch)
+            #fig = plt.figure()
+            #plt.imshow(weight_patch)
+            #plt.savefig(saveStr)
+            #plt.close(fig)
+
         outWeightMat[startIdx_y:endIdx_y, startIdx_x:endIdx_x, :] = weight_patch
 
-    plt.imshow(outWeightMat)
-    plt.savefig(outFilename)
+    saveStr = outDir + "_weights.png"
+    spmisc.imsave(saveStr, outWeightMat)
 
-    plt.figure()
+    fig = plt.figure()
     plt.hist(weights_matrix.flatten(), 50)
-    plt.savefig(outFilename + ".hist.png")
-
+    plt.savefig(outDir + "_hist.png", bbox_inches='tight')
+    plt.close(fig)
 

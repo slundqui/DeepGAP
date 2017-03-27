@@ -137,25 +137,26 @@ class SLPVid(TFObj):
         (self.eval_vals, self.eval_idx) = tf.nn.top_k(self.classRank, k=numK)
 
         #Summaries
-        tf.scalar_summary('loss', self.loss, name="loss")
-        tf.scalar_summary('accuracy', self.accuracy, name="accuracy")
+        tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('accuracy', self.accuracy)
         for c in range(self.numClasses):
             className = self.idxToName[c]
-            tf.scalar_summary(className+' F1', self.classF1[c])
+            tf.summary.scalar(className+' F1', self.classF1[c])
 
-        tf.histogram_summary('input', self.inputImage, name="image_vis")
-        tf.histogram_summary('inputPooled', self.inputPooled, name="image_vis")
-        tf.histogram_summary('gt', self.select_gt, name="gt_vis")
+        tf.summary.histogram('input', self.inputImage)
+        tf.summary.histogram('inputPooled', self.inputPooled)
+        tf.summary.histogram('gt', self.select_gt)
         #Conv layer histograms
-        tf.histogram_summary('h_conv', self.h_conv, name="conv1_vis")
-        tf.histogram_summary('est', self.est, name="est_vis")
+        tf.summary.histogram('h_conv', self.h_conv)
+        tf.summary.histogram('est', self.est)
         #Weight and bias hists
-        tf.histogram_summary('class_weight', self.class_weight, name="weight_vis")
-        tf.histogram_summary('class_bias', self.class_bias, name="bias_vis")
+        tf.summary.histogram('class_weight', self.class_weight)
+        tf.summary.histogram('class_bias', self.class_bias)
 
 
     def getLoadVars(self):
-        v = tf.all_variables()
+        v = tf.global_variables()
+        v = [var for var in v if ("Adam" not in var.name)]
         return v
 
     #Trains model for numSteps

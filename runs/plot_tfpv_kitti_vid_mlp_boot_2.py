@@ -1,6 +1,8 @@
 import matplotlib
 matplotlib.use('Agg')
+
 #import matplotlib.pyplot as plt
+
 from dataObj.pv_image import kittiVidPvObj
 from tf.SLPVid import SLPVid
 from tf.MLPVid import MLPVid
@@ -69,8 +71,8 @@ stage2_params = {
     'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
-    'outerSteps':      302, #1000000,
-    'innerSteps':      100, #300,
+    'outerSteps':      1, #1000000,
+    'innerSteps':      1, #300,
     #Batch size
     'batchSize':       16,
     #Learning rate for optimizer
