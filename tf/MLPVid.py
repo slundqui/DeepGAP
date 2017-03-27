@@ -233,6 +233,15 @@ class MLPVid(TFObj):
                 gt = data[1]
             self.evalAndPlotCam(feedDict, data, gt, filename)
 
+    def evalAndPlotDet(self, feedDict, data, gt, prefix):
+        print "Plotting"
+        #We need feed_dict here
+        est = self.sess.run(self.est, feed_dict=feedDict)
+        img = data[2]
+        pdb.set_trace()
+
+
+
     def evalAndPlotCam(self, feedDict, data, gt, prefix):
         print "Plotting"
 
@@ -301,6 +310,7 @@ class MLPVid(TFObj):
                 gt = inGt
             data = (inData, inGt, inImg)
             self.evalAndPlotCam(feedDict, data, gt, filename)
+            self.evalAndPlotDet(feedDict, data, gt, filename)
 
         return outVals
 
