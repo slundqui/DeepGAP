@@ -26,7 +26,7 @@ dncFilenames= [
 
 #trainFnPrefix = "/shared/KITTI/objdet/training/"
 
-trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_2000.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list.txt"
 testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
@@ -43,121 +43,65 @@ testRange = [int(l) for l in testLines]
 trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange, binClass=[1, 2, 3])
 testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=testRange, binClass=[1, 2, 3])
 
-#stage1_params = {
-#    #Base output directory
-#    'outDir':          "/home/slundquist/mountData/DeepGAP/",
-#    #Inner run directory
-#    'runDir':          "/tfpv_kitti_vid_4x8_boot_1_bin_4000/",
-#    'tfDir':           "/tfout",
-#    #Save parameters
-#    'ckptDir':         "/checkpoints/",
-#    'saveFile':        "/save-model",
-#    'savePeriod':      100, #In terms of displayPeriod
-#    #output plots directory
-#    'plotDir':         "plots/",
-#    'plotPeriod':      100, #With respect to displayPeriod
-#    #Progress step
-#    'progress':        1,
-#    #Controls how often to write out to tensorboard
-#    'writeStep':       50, #300,
-#    #Flag for loading weights from checkpoint
-#    'load':            False,
-#    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_mlp_fromslp_noreg.ckpt",
-#    #Device to run on
-#    'device':          '/gpu:0',
-#    #####ISTA PARAMS######
-#    #Num iterations
-#    'outerSteps':      302, #1000000,
-#    'innerSteps':      100, #300,
-#    #Batch size
-#    'batchSize':       16,
-#    #Learning rate for optimizer
-#    'learningRate':    1e-4,
-#    'beta1' :          .9,
-#    'beta2' :          .999,
-#    'epsilon':         1e-8,
-#    'learningRateBias': 1e-6,
-#    'numClasses': trainDataObj.numClasses,
-#    'idxToName': trainDataObj.idxToName,
-#    'preTrain': False,
-#    'lossWeight': trainDataObj.lossWeight,
-#    'gtShape': trainDataObj.gtShape,
-#    'gtSparse': False,
-#    'inputScale': 50,
-#    'regWeight': 0,
-#}
-#
-##Allocate tensorflow object
-##This will build the graph
-#tfObj = SLPVid(stage1_params, trainDataObj.inputShape)
-#
-#print "Done init"
-#tfObj.runModel(trainDataObj, testDataObj = testDataObj)
-#print "Done run"
-#
-#tfObj.closeSess()
-
-#stage2_params = {
-#    #Base output directory
-#    'outDir':          "/home/slundquist/mountData/DeepGAP/",
-#    #Inner run directory
-#    'runDir':          "/tfpv_kitti_vid_4x8_boot_2_bin_4000/",
-#    'tfDir':           "/tfout",
-#    #Save parameters
-#    'ckptDir':         "/checkpoints/",
-#    'saveFile':        "/save-model",
-#    'savePeriod':      100, #In terms of displayPeriod
-#    #output plots directory
-#    'plotDir':         "plots/",
-#    'plotPeriod':      100, #With respect to displayPeriod
-#    #Progress step
-#    'progress':        1,
-#    #Controls how often to write out to tensorboard
-#    'writeStep':       50, #300,
-#    #Flag for loading weights from checkpoint
-#    'load':            True,
-#    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_4000/checkpoints/save-model-30100",
-#    #Device to run on
-#    'device':          '/gpu:1',
-#    #####ISTA PARAMS######
-#    #Num iterations
-#    'outerSteps':      302, #1000000,
-#    'innerSteps':      100, #300,
-#    #Batch size
-#    'batchSize':       16,
-#    #Learning rate for optimizer
-#    'learningRate':    1e-4,
-#    'beta1' :          .9,
-#    'beta2' :          .999,
-#    'epsilon':         1e-8,
-#    'learningRateBias': 1e-6,
-#    #'numClasses': trainDataObj.numClasses,
-#    'numClasses': trainDataObj.numClasses,
-#    'idxToName': trainDataObj.idxToName,
-#    'preTrain': False,
-#    'lossWeight': trainDataObj.lossWeight,
-#    'gtShape': trainDataObj.gtShape,
-#    'gtSparse': False,
-#    'inputScale': 50,
-#    'regWeight': 0,
-#    'resLoad': True,
-#}
-#
-##Allocate tensorflow object
-##This will build the graph
-#tfObj = MLPVid(stage2_params, trainDataObj.inputShape)
-#
-#print "Done init"
-#tfObj.runModel(trainDataObj, testDataObj = testDataObj)
-#print "Done run"
-#
-#tfObj.closeSess()
-
-stage3_params = {
+stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/tfpv_kitti_vid_4x8_boot_3_bin_2000/",
+    'runDir':          "/tfpv_kitti_vid_4x8_boot_1_bin_run3/",
+    'tfDir':           "/tfout",
+    #Save parameters
+    'ckptDir':         "/checkpoints/",
+    'saveFile':        "/save-model",
+    'savePeriod':      100, #In terms of displayPeriod
+    #output plots directory
+    'plotDir':         "plots/",
+    'plotPeriod':      100, #With respect to displayPeriod
+    #Progress step
+    'progress':        1,
+    #Controls how often to write out to tensorboard
+    'writeStep':       50, #300,
+    #Flag for loading weights from checkpoint
+    'load':            False,
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/saved/pv_kitti_vid_4x8_mlp_fromslp_noreg.ckpt",
+    #Device to run on
+    'device':          '/gpu:0',
+    #####ISTA PARAMS######
+    #Num iterations
+    'outerSteps':      302, #1000000,
+    'innerSteps':      100, #300,
+    #Batch size
+    'batchSize':       16,
+    #Learning rate for optimizer
+    'learningRate':    1e-4,
+    'beta1' :          .9,
+    'beta2' :          .999,
+    'epsilon':         1e-8,
+    'learningRateBias': 1e-6,
+    'numClasses': trainDataObj.numClasses,
+    'idxToName': trainDataObj.idxToName,
+    'preTrain': False,
+    'lossWeight': trainDataObj.lossWeight,
+    'gtShape': trainDataObj.gtShape,
+    'gtSparse': False,
+    'inputScale': 50,
+    'regWeight': 0,
+}
+
+#Allocate tensorflow object
+#This will build the graph
+tfObj = SLPVid(stage1_params, trainDataObj.inputShape)
+
+print "Done init"
+tfObj.runModel(trainDataObj, testDataObj = testDataObj)
+print "Done run"
+
+tfObj.closeSess()
+
+stage2_params = {
+    #Base output directory
+    'outDir':          "/home/slundquist/mountData/DeepGAP/",
+    #Inner run directory
+    'runDir':          "/tfpv_kitti_vid_4x8_boot_2_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -172,7 +116,63 @@ stage3_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_2000/checkpoints/save-model-10100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_run3/checkpoints/save-model-30100",
+    #Device to run on
+    'device':          '/gpu:0',
+    #####ISTA PARAMS######
+    #Num iterations
+    'outerSteps':      302, #1000000,
+    'innerSteps':      100, #300,
+    #Batch size
+    'batchSize':       16,
+    #Learning rate for optimizer
+    'learningRate':    1e-4,
+    'beta1' :          .9,
+    'beta2' :          .999,
+    'epsilon':         1e-8,
+    'learningRateBias': 1e-6,
+    #'numClasses': trainDataObj.numClasses,
+    'numClasses': trainDataObj.numClasses,
+    'idxToName': trainDataObj.idxToName,
+    'preTrain': False,
+    'lossWeight': trainDataObj.lossWeight,
+    'gtShape': trainDataObj.gtShape,
+    'gtSparse': False,
+    'inputScale': 50,
+    'regWeight': 0,
+    'resLoad': True,
+}
+
+#Allocate tensorflow object
+#This will build the graph
+tfObj = MLPVid(stage2_params, trainDataObj.inputShape)
+
+print "Done init"
+tfObj.runModel(trainDataObj, testDataObj = testDataObj)
+print "Done run"
+
+tfObj.closeSess()
+
+stage3_params = {
+    #Base output directory
+    'outDir':          "/home/slundquist/mountData/DeepGAP/",
+    #Inner run directory
+    'runDir':          "/tfpv_kitti_vid_4x8_boot_3_bin_run3/",
+    'tfDir':           "/tfout",
+    #Save parameters
+    'ckptDir':         "/checkpoints/",
+    'saveFile':        "/save-model",
+    'savePeriod':      100, #In terms of displayPeriod
+    #output plots directory
+    'plotDir':         "plots/",
+    'plotPeriod':      100, #With respect to displayPeriod
+    #Progress step
+    'progress':        1,
+    #Controls how often to write out to tensorboard
+    'writeStep':       50, #300,
+    #Flag for loading weights from checkpoint
+    'load':            True,
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_run3/checkpoints/save-model-10100",
     #Device to run on
     'device':          '/gpu:0',
     #Num iterations

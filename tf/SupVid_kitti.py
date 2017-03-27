@@ -212,7 +212,7 @@ class SupVid_kitti(TFObj):
         tf.summary.histogram('class_bias', self.class_bias)
 
     def getLoadVars(self):
-        v = tf.all_variables()
+        v = tf.global_variables()
         v = [var for var in v if ("Adam" not in var.name)]
         return v
 

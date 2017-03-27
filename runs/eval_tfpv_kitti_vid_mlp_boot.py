@@ -26,7 +26,7 @@ dncFilenames= [
 
 #trainFnPrefix = "/shared/KITTI/objdet/training/"
 
-trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_4000.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list.txt"
 testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
@@ -47,7 +47,7 @@ stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_1_bin_4000/",
+    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_1_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -62,9 +62,9 @@ stage1_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_4000/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_run3/checkpoints/save-model-30100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      302, #1000000,
@@ -77,14 +77,13 @@ stage1_params = {
     'beta2' :          .999,
     'epsilon':         1e-8,
     'learningRateBias': 1e-6,
-    #'numClasses': trainDataObj.numClasses,
     'numClasses': trainDataObj.numClasses,
     'idxToName': trainDataObj.idxToName,
     'preTrain': False,
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
-    'inputScale': 100,
+    'inputScale': 50,
     'regWeight': 0,
 }
 
@@ -105,7 +104,7 @@ stage2_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_2_bin_4000/",
+    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_2_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -120,9 +119,9 @@ stage2_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_4000/checkpoints/save-model-10100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_run3/checkpoints/save-model-10100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #####ISTA PARAMS######
     #Num iterations
     'outerSteps':      302, #1000000,
@@ -142,7 +141,7 @@ stage2_params = {
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
-    'inputScale': 100,
+    'inputScale': 50,
     'regWeight': 0,
     'resLoad': False,
 }
@@ -162,7 +161,7 @@ stage3_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_3_bin_4000/",
+    'runDir':          "/eval_tfpv_kitti_vid_4x8_boot_3_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -177,11 +176,11 @@ stage3_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_3_bin_4000/checkpoints/save-model-10100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_3_bin_run3/checkpoints/save-model-10100",
     #Device to run on
-    'device':          '/gpu:1',
+    'device':          '/gpu:0',
     #Num iterations
-    'outerSteps':      1002, #1000000,
+    'outerSteps':      300, #1000000,
     'innerSteps':      100, #300,
     #Batch size
     'batchSize':       16,
@@ -198,7 +197,9 @@ stage3_params = {
     'lossWeight': trainDataObj.lossWeight,
     'gtShape': trainDataObj.gtShape,
     'gtSparse': False,
-    'inputScale': 100,
+    'inputScale': 50,
+    'regWeight': 0,
+    'resLoad': True,
     'regWeight': 0,
     'resLoad': False,
 }
