@@ -36,6 +36,10 @@ class SupVid_kitti(TFObj):
         self.numFeatures = params['numFeatures']
         self.plotInd = params['plotInd']
         self.plotFM = params['plotFM']
+        self.augment = params['augment']
+        if(self.augment):
+            self.augMean = params['augMean']
+            self.augStd = params['augStd']
 
         self.weightDir = self.plotDir + "/weight/"
         self.featureMapDir = self.plotDir + "/featuremap/"
@@ -74,11 +78,20 @@ class SupVid_kitti(TFObj):
                     self.reshapeImage = tf.reshape(self.inputImage,
                             [self.batchSize, numTime, 2, inputShape[1], inputShape[2], inputShape[3]])
                     self.permuteImage = tf.transpose(self.reshapeImage, [0, 1, 3, 4, 5, 2])
-                    self.image = tf.reshape(self.permuteImage,
-                            [self.batchSize, numTime, inputShape[1], inputShape[2], inputShape[3]*2])
+                    imageShape = [self.batchSize, numTime, inputShape[1], inputShape[2], inputShape[3]*2]
+                    self.image = tf.reshape(self.permuteImage, imageShape)
                 else:
-                    self.image = tf.reshape(self.inputImage,
-                            [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]])
+                    imageShape = [self.batchSize, inputShape[0], inputShape[1], inputShape[2], inputShape[3]]
+                    self.image = tf.reshape(self.inputImage, imageShape)
+
+                if(self.augment):
+                    #Add noise to image
+                    #Image has mean 0, std 1
+                    randMean = tf.random_uniform([], minval=-self.augMean, maxval=self.augMean)
+                    self.augNoise = tf.random_normal(imageShape, mean=randMean, stddev=self.augStd)
+                    #Placeholder for augmentation
+                    self.doAug = tf.placeholder("float32", [], "doAug")
+                    self.image = self.image + (self.augNoise * self.doAug)
 
                 self.padInput = tf.pad(self.image, [[0, 0], [0, 0], [7, 7], [15, 15], [0, 0]])
 
@@ -200,6 +213,8 @@ class SupVid_kitti(TFObj):
         tf.summary.histogram('input', self.inputImage)
         tf.summary.histogram('inputPooled', self.inputPooled)
         tf.summary.histogram('gt', self.select_gt)
+        if(self.augment):
+            tf.summary.histogram('augNoise', self.augNoise)
         #Conv layer histograms
         tf.summary.histogram('h_conv', self.h_conv)
         tf.summary.histogram('h_hidden', self.h_hidden)
@@ -232,6 +247,8 @@ class SupVid_kitti(TFObj):
                 feedDict = {self.inputImage:data[0],
                             self.gt:data[1]
                             }
+            if(self.augment):
+                feedDict[self.doAug] = 1.0
 
             #feedDict = {self.inputImage: data[0], self.gt: data[1]}
             #Run optimizer
@@ -355,6 +372,10 @@ class SupVid_kitti(TFObj):
                         self.gt:inGt}
         else:
             feedDict ={self.inputImage:inData}
+
+        #Do not augument when evaluating
+        if(self.augment):
+            feedDict[self.doAug] = 0.0
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
         if(inGt != None):
