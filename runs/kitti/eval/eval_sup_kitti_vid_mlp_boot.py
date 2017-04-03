@@ -51,7 +51,7 @@ stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_sup_kitti_vid_4x8_boot_1_bin_run1/",
+    'runDir':          "/eval_sup_kitti_vid_4x8_boot_1_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -66,7 +66,7 @@ stage1_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_run1/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_run3/checkpoints/save-model-30100",
     #Device to run on
     'device':          '/gpu:1',
     #####ISTA PARAMS######
@@ -94,6 +94,7 @@ stage1_params = {
     'numFeatures': 3072,
     'plotInd': False,
     'plotFM': False,
+    'augment': False,
 }
 
 #Allocate tensorflow object
@@ -112,7 +113,7 @@ stage2_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_sup_kitti_vid_4x8_boot_2_bin_run1/",
+    'runDir':          "/eval_sup_kitti_vid_4x8_boot_2_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -127,7 +128,7 @@ stage2_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2_bin_run1/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2_bin_run3/checkpoints/save-model-10100",
     #Device to run on
     'device':          '/gpu:1',
     #####ISTA PARAMS######
@@ -174,7 +175,7 @@ stage3_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/eval_sup_kitti_vid_4x8_boot_3_bin_run1/",
+    'runDir':          "/eval_sup_kitti_vid_4x8_boot_3_bin_run3/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -189,7 +190,7 @@ stage3_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3_bin_run1/checkpoints/save-model-10100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3_bin_run3/checkpoints/save-model-10100",
     #Device to run on
     'device':          '/gpu:1',
     #Num iterations
