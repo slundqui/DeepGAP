@@ -239,12 +239,12 @@ class MLPVid(TFObj):
         gtInput = np.squeeze(gt)[:, :, :,classDet]
         plotDet(prefix, imgInput, gtInput, est, [16, 32])
 
-    def evalAndPlotDet(self, feedDict, data, gt, prefix):
-        print "Plotting"
-        #We need feed_dict here
-        est = self.sess.run(self.est, feed_dict=feedDict)
-        img = data[2]
-        pdb.set_trace()
+    #def evalAndPlotDet(self, feedDict, data, gt, prefix):
+    #    print "Plotting"
+    #    #We need feed_dict here
+    #    est = self.sess.run(self.est, feed_dict=feedDict)
+    #    img = data[2]
+    #    pdb.set_trace()
 
 
 
@@ -316,7 +316,7 @@ class MLPVid(TFObj):
                 gt = inGt
             data = (inData, inGt, inImg)
             #self.evalAndPlotCam(feedDict, data, gt, filename)
-            self.evalAndPlotDet(feedDict, data, gt, filename)
+            #self.evalAndPlotDet(feedDict, data, gt, filename)
 
         return outVals
 
