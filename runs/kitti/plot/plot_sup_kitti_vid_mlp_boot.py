@@ -51,7 +51,7 @@ stage1_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/plot_sup_kitti_vid_4x8_boot_1_bin_sparse/",
+    'runDir':          "/plot_sup_kitti_vid_4x8_boot_1_bin_pretrain/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -66,7 +66,7 @@ stage1_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_ps15/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_pretrain_run0/checkpoints/save-model-30100",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######
@@ -93,7 +93,9 @@ stage1_params = {
     'time': True,
     'numFeatures': 3072,
     'plotInd': True,
-    'plotFM': True
+    'plotFM': True,
+    'augment': False,
+    'loadHiddenWeights': False,
 }
 
 #Allocate tensorflow object

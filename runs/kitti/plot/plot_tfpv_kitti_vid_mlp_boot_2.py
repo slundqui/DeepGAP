@@ -16,8 +16,11 @@ trainInputs = [
             "/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_eval/time1.pvp",
             ]
 
+#trainGts = [
+#            "/home/slundquist/mountData/kitti_pv/objdet_train2/GroundTruth2Background.pvp",
+#        ]
 trainGts = [
-            "/home/slundquist/mountData/kitti_pv/objdet_train2/GroundTruth2Background.pvp",
+            "/home/slundquist/mountData/kitti_int/gtIntBin.pvp",
         ]
 trainFilenames = [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/FrameLeft2.pvp",
@@ -51,7 +54,7 @@ stage2_params = {
     #Base output directory
     'outDir':          "/home/slundquist/mountData/DeepGAP/",
     #Inner run directory
-    'runDir':          "/plot_tfpv_kitti_vid_4x8_boot_2_bin/",
+    'runDir':          "/plotdet_tfpv_kitti_vid_4x8_boot_2_bin/",
     'tfDir':           "/tfout",
     #Save parameters
     'ckptDir':         "/checkpoints/",
@@ -66,7 +69,7 @@ stage2_params = {
     'writeStep':       50, #300,
     #Flag for loading weights from checkpoint
     'load':            True,
-    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin/checkpoints/save-model-30100",
+    'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_run1/checkpoints/save-model-30100",
     #Device to run on
     'device':          '/gpu:0',
     #####ISTA PARAMS######

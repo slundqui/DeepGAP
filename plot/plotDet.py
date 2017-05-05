@@ -21,13 +21,15 @@ def plotDet(prefix, imgInput, gtInput, est, boxSize, thresh=.5, r=[2, 1, 0, 4, 7
         estImg = drawBoxes(imgInput[b], est[b], boxSize, thresh)
         gtImg = drawBoxes(imgInput[b], gtInput[b], boxSize, thresh)
 
+        if(i == 0):
+            axarr[i,0].set_title("Ground Truth")
+            axarr[i,1].set_title("Estimate")
+
         axarr[i,0].imshow(gtImg)
-        #axarr[0].set_title("Ground Truth")
         axarr[i,0].xaxis.set_visible(False)
         axarr[i,0].yaxis.set_visible(False)
 
         axarr[i,1].imshow(estImg)
-        #axarr[1].set_title("Estimate")
         axarr[i,1].xaxis.set_visible(False)
         axarr[i,1].yaxis.set_visible(False)
 

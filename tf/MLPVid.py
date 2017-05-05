@@ -230,7 +230,7 @@ class MLPVid(TFObj):
                 gt = np.reshape(data[1].toarray(), (self.batchSize, gtShape[0], gtShape[1], gtShape[2], gtShape[3]))
             else:
                 gt = data[1]
-            self.evalAndPlotCam(feedDict, data, gt, filename)
+            #self.evalAndPlotCam(feedDict, data, gt, filename)
 
     def evalAndPlotDet(self, feedDict, data, gt, prefix, classDet=1):
         print "Plotting det"
@@ -316,7 +316,7 @@ class MLPVid(TFObj):
                 gt = inGt
             data = (inData, inGt, inImg)
             #self.evalAndPlotCam(feedDict, data, gt, filename)
-            #self.evalAndPlotDet(feedDict, data, gt, filename)
+            self.evalAndPlotDet(feedDict, data, gt, filename)
 
         return outVals
 

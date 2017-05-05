@@ -48,7 +48,7 @@ class SupVidMLP2_kitti(TFObj):
         else:
             numTimeInputs = 1
 
-        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, self.numFeatures], "hidden_weight")
+        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, self.numFeatures], "V1_W")
         self.h_bias = bias_variable([self.numFeatures], "hidden_bias")
 
         self.conv1_w = weight_variable([1, 1, self.numFeatures, self.numFeatures], "conv1_w", 1e-6)

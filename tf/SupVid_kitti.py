@@ -44,6 +44,10 @@ class SupVid_kitti(TFObj):
         self.weightDir = self.plotDir + "/weight/"
         self.featureMapDir = self.plotDir + "/featuremap/"
 
+        self.loadHiddenWeights = params["loadHiddenWeights"]
+        if(self.loadHiddenWeights):
+            self.hiddenWeightsFile = params["hiddenWeightsFile"]
+
     def defineVars(self):
         #Define all variables outside of scope
         if(self.stereo):
@@ -56,7 +60,19 @@ class SupVid_kitti(TFObj):
             numTimeInputs = 1
 
         #Define all variables outside of scope
-        self.h_weight = weight_variable_xavier([numTimeInputs, 15, 32, numInputFeatures, self.numFeatures], "hidden_weight")
+        hiddenWeightsShape= [numTimeInputs, 15, 32, numInputFeatures, self.numFeatures]
+        if(self.loadHiddenWeights):
+            np_h_weight = np.load(self.hiddenWeightsFile)
+            np_shape = np_h_weight.shape
+            #Make sure same shape
+            assert(len(np_h_weight.shape) == len(hiddenWeightsShape))
+            for i, j in zip(np_h_weight.shape, hiddenWeightsShape):
+                assert (i == j)
+            #Load from np
+            self.h_weight = weight_variable_fromnp(np_h_weight, "V1_W")
+        else:
+            self.h_weight = weight_variable_xavier(hiddenWeightsShape, "V1_W") #"hidden_weight")
+
         self.h_bias = bias_variable([self.numFeatures], "hidden_bias")
         self.class_weight = weight_variable_xavier([1, 1, self.numFeatures, self.numClasses], "class_weight")
         self.class_bias = bias_variable([self.numClasses], "class_bias" )
@@ -307,7 +323,8 @@ class SupVid_kitti(TFObj):
         print "Plotting featuremaps"
         #np_act = self.sess.run(self.h_hidden, feed_dict=feedDict)
 
-        np_act = self.sess.run(self.h_hidden, feed_dict=feedDict) - 5.5
+        np_act = self.sess.run(self.h_hidden, feed_dict=feedDict) - 38
+
         #Set all negative activites to 0
         np_act[np.nonzero(np_act < 0)] = 0
 

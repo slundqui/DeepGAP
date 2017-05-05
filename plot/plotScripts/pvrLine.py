@@ -8,12 +8,90 @@ from util import calcStats, calcBatchAuc
 if __name__ == "__main__":
     baseDir = "/media/data/slundquist/mountData/DeepGAP/"
     doPvr = True #pvr vs roc
+    showChance = False
+    showErr = True
 
-    outPrefix = "/home/slundquist/mountData/DeepGAP/evalplots/trainVsAUC_"
+    outPrefix = "/home/slundquist/mountData/DeepGAP/evalplots/trainVsAUC_all_"
     titleSuffix = ""
+    #Inner group defines number of points on plot
+    #Outer list defines number of lines
+    lineGroup = [(0,3,6,9,12,15), (1,4,7,10,13,16), (2,5,8,11,14,17),
+                 (18,21,24,27,30,33), (19,22,25,28,31,34), (20,23,26,29,32,35)]
+    #Labels of lines
+    lineLabels = ["2 layer Sparse", "3 layer Sparse", "4 layer Sparse",
+                  "2 layer Sup", "3 layer Sup", "4 layer Sup"]
+    colors = [
+            (1, .7, .7),
+            (1, .3, .3),
+            (.8, 0, 0),
+            (.7, .7, 1),
+            (.3, .3, 1),
+            (0, 0, .8),
+    ]
+    fmt = [
+            ':o',
+            '--o',
+            '-o',
+            ':o',
+            '--o',
+            '-o',
+    ]
+
+    outPrefix = "/home/slundquist/mountData/DeepGAP/evalplots/trainVsAUC_2layer_"
+    titleSuffix = " for 2 layer"
+    #Inner group defines number of points on plot
+    #Outer list defines number of lines
+    lineGroup = [lineGroup[0], lineGroup[3]]
+
+    #Labels of lines
+    lineLabels = ["Sparse", "Sup"]
+    colors = [
+            (1, 0, 0),
+            (0, 0, 1),
+    ]
+    fmt = [
+            '-o',
+            '-o',
+    ]
 
     #Innermost list contains batch
     estFiles = [
+            ["eval_tfpv_kitti_vid_4x8_boot_1_bin_100_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_100_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_100_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_2_bin_100_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_100_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_100_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_3_bin_100_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_100_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_100_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_1_bin_500_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_500_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_500_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_2_bin_500_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_500_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_500_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_3_bin_500_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_500_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_500_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_1_bin_1000_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_1000_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_1000_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_2_bin_1000_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_1000_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_1000_run3/evalEstIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_3_bin_1000_run1/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_1000_run2/evalEstIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_1000_run3/evalEstIdxs.npy",
+            ],
             ["eval_tfpv_kitti_vid_4x8_boot_1_bin_2000_run1/evalEstIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_1_bin_2000_run2/evalEstIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_1_bin_2000_run3/evalEstIdxs.npy",
@@ -49,6 +127,42 @@ if __name__ == "__main__":
             ["eval_tfpv_kitti_vid_4x8_boot_3_bin_run1/evalEstIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_3_bin_run2/evalEstIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_3_bin_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_1_bin_100_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_100_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_100_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_2_bin_100_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_100_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_100_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_3_bin_100_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_100_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_100_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_1_bin_500_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_500_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_500_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_2_bin_500_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_500_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_500_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_3_bin_500_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_500_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_500_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_1_bin_1000_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_1000_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_1000_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_2_bin_1000_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_1000_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_1000_run3/evalEstIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_3_bin_1000_run1/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_1000_run2/evalEstIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_1000_run3/evalEstIdxs.npy",
             ],
             ["eval_sup_kitti_vid_4x8_boot_1_bin_2000_run1/evalEstIdxs.npy",
              "eval_sup_kitti_vid_4x8_boot_1_bin_2000_run2/evalEstIdxs.npy",
@@ -89,6 +203,42 @@ if __name__ == "__main__":
             ]
 
     gtFiles = [
+            ["eval_tfpv_kitti_vid_4x8_boot_1_bin_100_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_100_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_100_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_2_bin_100_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_100_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_100_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_3_bin_100_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_100_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_100_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_1_bin_500_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_500_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_500_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_2_bin_500_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_500_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_500_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_3_bin_500_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_500_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_500_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_1_bin_1000_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_1000_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_1_bin_1000_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_2_bin_1000_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_1000_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_2_bin_1000_run3/evalGtIdxs.npy",
+            ],
+            ["eval_tfpv_kitti_vid_4x8_boot_3_bin_1000_run1/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_1000_run2/evalGtIdxs.npy",
+             "eval_tfpv_kitti_vid_4x8_boot_3_bin_1000_run3/evalGtIdxs.npy",
+            ],
             ["eval_tfpv_kitti_vid_4x8_boot_1_bin_2000_run1/evalGtIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_1_bin_2000_run2/evalGtIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_1_bin_2000_run3/evalGtIdxs.npy",
@@ -124,6 +274,42 @@ if __name__ == "__main__":
             ["eval_tfpv_kitti_vid_4x8_boot_3_bin_run1/evalGtIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_3_bin_run2/evalGtIdxs.npy",
              "eval_tfpv_kitti_vid_4x8_boot_3_bin_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_1_bin_100_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_100_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_100_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_2_bin_100_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_100_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_100_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_3_bin_100_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_100_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_100_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_1_bin_500_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_500_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_500_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_2_bin_500_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_500_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_500_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_3_bin_500_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_500_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_500_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_1_bin_1000_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_1000_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_1_bin_1000_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_2_bin_1000_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_1000_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_2_bin_1000_run3/evalGtIdxs.npy",
+            ],
+            ["eval_sup_kitti_vid_4x8_boot_3_bin_1000_run1/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_1000_run2/evalGtIdxs.npy",
+             "eval_sup_kitti_vid_4x8_boot_3_bin_1000_run3/evalGtIdxs.npy",
             ],
             ["eval_sup_kitti_vid_4x8_boot_1_bin_2000_run1/evalGtIdxs.npy",
              "eval_sup_kitti_vid_4x8_boot_1_bin_2000_run2/evalGtIdxs.npy",
@@ -163,23 +349,9 @@ if __name__ == "__main__":
             ],
             ]
 
-    #Inner group defines number of points on plot
-    #Outer list defines number of lines
-    lineGroup = [(0,3,6), (1,4,7), (2,5,8), (9,12,15), (10,13,16), (11, 14, 17)]
-    #Labels of lines
-    lineLabels = ["2 layer Sparse", "3 layer Sparse", "4 layer Sparse",
-                  "2 layer Sup", "3 layer Sup", "4 layer Sup"]
     #x values of points
-    xPoints = [2000, 4000, 6167]
+    xPoints = [100, 500, 1000, 2000, 4000, 6167]
 
-    colors = [
-            (1, .8, .8),
-            (1, .4, .4),
-            (1, 0, 0),
-            (.8, .8, 1),
-            (.4, .4, 1),
-            (0, 0, 1),
-    ]
 
     randEstFiles = [
             "eval_randchance_kitti_vid_4x8/evalEstIdxs_run0.npy",
@@ -196,8 +368,8 @@ if __name__ == "__main__":
 
     randGtFile = "eval_randchance_kitti_vid_4x8/evalGtIdxs.npy"
 
-    xmin = 1000
-    xmax = 6500
+    xlim = [0, 6500]
+    ylim = [.3, .7]
 
     #Store auc
     auc = [None for outer in estFiles]
@@ -234,33 +406,50 @@ if __name__ == "__main__":
     #    plt.plot(fpr[0], recall[0], 'k--', linewidth=4, label="chance")
     meanRandChanceAuc = np.mean(randChanceAuc)
 
-    assert(len(xPoints) == len(auc[0]))
+    #assert(len(xPoints) == len(auc[0]))
     auc = np.array(auc)
-    aucMean = np.mean(auc, axis=1)
-    aucStd = np.std(auc, axis=1)
-
+    aucMed = np.median(auc, axis=1)
+    aucMin = np.min(auc, axis=1)
+    aucMax = np.max(auc, axis=1)
+    #aucMean = np.mean(auc, axis=1)
+    #aucStd = np.std(auc, axis=1)
 
     f = plt.figure()
+    plt.hold(1)
+
     #Draw multple lines
     for i, lineIdx in enumerate(lineGroup):
-        yPoints = aucMean[np.array(lineIdx)]
-        yErr = aucStd[np.array(lineIdx)]
+        #yPoints = aucMean[np.array(lineIdx)]
+        yPoints = aucMed[np.array(lineIdx)]
+        yMax = aucMax[np.array(lineIdx)]
+        yMin = aucMin[np.array(lineIdx)]
+
         label = lineLabels[i]
         color = colors[i]
-        plt.errorbar(xPoints, yPoints, linewidth=2, label=label, color=color, yerr = yErr, fmt="-o")
+        plt.plot(xPoints, yPoints, fmt[i], linewidth=2, label=label, color=color)
+        if(showErr):
+            plt.fill_between(xPoints, yMin, yMax, alpha=.2, facecolor=color)
+        #plt.errorbar(xPoints, yPoints, linewidth=2, label=label, color=color, yerr = yErr, fmt=fmt[i], capsize=5)
+
+    if(showChance):
+        plt.errorbar(xlim, [meanRandChanceAuc, meanRandChanceAuc], yerr=[0, 0],
+            fmt="k--", label="Chance", linewidth=2)
 
     plt.xlabel("Training Examples", fontsize=20)
     if(doPvr):
         ylabel = "Area under PvR"
     else:
         ylabel = "Area under ROC"
-    title = "Training vs " + ylabel
+    title = "Training vs AUC"
     plt.ylabel(ylabel, fontsize=20)
-    plt.title(title + titleSuffix, fontsize = 30)
-    plt.xlim(xmin, xmax)
-    plt.errorbar([xmin, xmax], [meanRandChanceAuc, meanRandChanceAuc], yerr=[0, 0],
-            fmt="k--", label="Chance", linewidth=2)
-    lgd = plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.title(title + titleSuffix, fontsize = 25)
+    plt.xticks(fontsize = 20)
+    plt.yticks(fontsize = 20)
+    plt.xlim(xlim)
+    plt.ylim(ylim)
+
+
+    lgd = plt.legend(bbox_to_anchor=(.6, .3), loc=2, borderaxespad=0., fontsize=20)
     if(doPvr):
         outName = outPrefix+'pvr.png'
     else:
