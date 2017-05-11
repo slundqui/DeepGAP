@@ -26,7 +26,7 @@ dncFilenames= [
 
 #trainFnPrefix = "/shared/KITTI/objdet/training/"
 
-trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_4000.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_2000.txt"
 testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
@@ -43,16 +43,22 @@ testRange = [int(l) for l in testLines]
 trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange, binClass=[1, 2, 3])
 testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=testRange, binClass=[1, 2, 3])
 
-bootSuffix = [
-        None,
-        "/save-model-30100.index",
-        "/save-model-10100",
+numTotalSteps = [
+        302,
+        102,
+        102,
         ]
 
-device = "/gpu:1"
+loadStrSuffix = [
+        None,
+        "30100",
+        "10100",
+        ]
+
+device = "/gpu:0"
 
 for i in range(4, 7):
-    runSuffix = "4000_run"+str(i)
+    runSuffix = "2000_run"+str(i)
     stage1_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
@@ -77,7 +83,7 @@ for i in range(4, 7):
         'device':          device,
         #####ISTA PARAMS######
         #Num iterations
-        'outerSteps':      302, #1000000,
+        'outerSteps':      numTotalSteps[0], #1000000,
         'innerSteps':      100, #300,
         #Batch size
         'batchSize':       16,
@@ -126,12 +132,12 @@ for i in range(4, 7):
         'writeStep':       50, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_" + runSuffix + "/checkpoints/" + bootSuffix[1],
+        'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_1_bin_" + runSuffix + "/checkpoints/save-model-" + loadStrSuffix[1],
         #Device to run on
         'device':          device,
         #####ISTA PARAMS######
         #Num iterations
-        'outerSteps':      302, #1000000,
+        'outerSteps':      numTotalSteps[1], #1000000,
         'innerSteps':      100, #300,
         #Batch size
         'batchSize':       16,
@@ -182,11 +188,11 @@ for i in range(4, 7):
         'writeStep':       50, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_" + runSuffix + "/checkpoints/" + bootSuffix[2],
+        'loadFile':        "/home/slundquist/mountData/DeepGAP/tfpv_kitti_vid_4x8_boot_2_bin_" + runSuffix + "/checkpoints/save-model-" + loadStrSuffix[2],
         #Device to run on
         'device':          device,
         #Num iterations
-        'outerSteps':      102, #300, #1000000,
+        'outerSteps':      numTotalSteps[2], #300, #1000000,
         'innerSteps':      100, #300,
         #Batch size
         'batchSize':       16,
