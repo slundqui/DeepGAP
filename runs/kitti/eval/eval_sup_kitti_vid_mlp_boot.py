@@ -47,9 +47,17 @@ testRange = [int(l) for l in testLines]
 trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange, binClass=[1, 2, 3])
 testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=False, rangeIdx=testRange, binClass=[1, 2, 3])
 
-for i in range(1, 4):
+loadStrSuffix = [
+        "10100",
+        "10100",
+        "10100",
+        ]
+
+device = "/gpu:1"
+
+for i in range(6, 7):
     #runSuffix = "run"+str(i)
-    runSuffix = "pretrain_noft_run"+str(i)
+    runSuffix = "pretrain_500_run"+str(i)
     stage1_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
@@ -69,9 +77,9 @@ for i in range(1, 4):
         'writeStep':       50, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_" + runSuffix + "/checkpoints/save-model-30100",
+        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[0],
         #Device to run on
-        'device':          '/gpu:0',
+        'device':          device,
         #Num iterations
         'outerSteps':      302, #1000000,
         'innerSteps':      100, #300,
@@ -131,9 +139,9 @@ for i in range(1, 4):
         'writeStep':       50, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2_bin_" + runSuffix + "/checkpoints/save-model-30100",
+        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2_bin_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[1],
         #Device to run on
-        'device':          '/gpu:0',
+        'device':          device,
         #Num iterations
         'outerSteps':      302, #1000000,
         'innerSteps':      100, #300,
@@ -192,9 +200,9 @@ for i in range(1, 4):
         'writeStep':       50, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3_bin_" + runSuffix + "/checkpoints/save-model-30100",
+        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3_bin_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[2],
         #Device to run on
-        'device':          '/gpu:0',
+        'device':          device,
         #Num iterations
         'outerSteps':      302, #1000000,
         'innerSteps':      100, #300,

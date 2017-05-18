@@ -69,9 +69,9 @@ class SupVid_kitti(TFObj):
             for i, j in zip(np_h_weight.shape, hiddenWeightsShape):
                 assert (i == j)
             #Load from np
-            self.h_weight = weight_variable_fromnp(np_h_weight, "V1_W")
+            self.h_weight = weight_variable_fromnp(np_h_weight, "V1_W")#"hidden_weight")
         else:
-            self.h_weight = weight_variable_xavier(hiddenWeightsShape, "V1_W") #"hidden_weight")
+            self.h_weight = weight_variable_xavier(hiddenWeightsShape, "V1_W")#"hidden_weight")
 
         self.h_bias = bias_variable([self.numFeatures], "hidden_bias")
         self.class_weight = weight_variable_xavier([1, 1, self.numFeatures, self.numClasses], "class_weight")

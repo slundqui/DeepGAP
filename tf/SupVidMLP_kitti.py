@@ -234,7 +234,7 @@ class SupVidMLP_kitti(TFObj):
         #v = tf.global_variables()
         if(self.resLoad):
             #Load first and 3rd layers
-            v = [var for var in v if (("hidden_weight" in var.name) or ("hidden_bias" in var.name) or ("class_weight" in var.name) or ("class_bias" in var.name)) and ("Adam" not in var.name)]
+            v = [var for var in v if (("V1_W" in var.name) or ("hidden_bias" in var.name) or ("class_weight" in var.name) or ("class_bias" in var.name)) and ("Adam" not in var.name)]
         else:
             v = [var for var in v if ("Adam" not in var.name)]
         return v
