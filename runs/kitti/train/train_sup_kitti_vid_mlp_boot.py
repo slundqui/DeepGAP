@@ -30,7 +30,7 @@ dncFilenames= [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
 
-trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_2000.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_4000.txt"
 testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
@@ -59,11 +59,11 @@ loadStrSuffix = [
         "10100",
         ]
 
-device = '/gpu:0'
+device = '/gpu:1'
 
-for i in range(4, 7):
+for i in range(1, 7):
     #runSuffix = "run"+str(i)
-    runSuffix = "2000_run"+str(i)
+    runSuffix = "pretrain_4000_run"+str(i)
     stage1_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
@@ -114,7 +114,7 @@ for i in range(4, 7):
         'augment': False,
         'augMean': .1,
         'augStd': .1,
-        'loadHiddenWeights': False,
+        'loadHiddenWeights': True,
         'hiddenWeightsFile' : "/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_weights/checkpoints/weights_300.npy",
     }
 
