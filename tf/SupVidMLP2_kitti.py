@@ -364,7 +364,7 @@ class SupVidMLP2_kitti(TFObj):
     #If an inGt is provided, will calculate summary as test set
     def evalModel(self, inData, inGt, inImg, gtShape, plot=True):
 
-        if(inGt != None):
+        if(inGt is not None):
             if(self.gtSparse):
                 (gtOutY, gtOutX, gtVals) = sp.find(inGt)
                 feedDict = {self.inputImage:inData,
@@ -382,7 +382,7 @@ class SupVidMLP2_kitti(TFObj):
                       }
 
         outVals = self.est.eval(feed_dict=feedDict, session=self.sess)
-        if(inGt != None):
+        if(inGt is not None):
             summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
             self.test_writer.add_summary(summary, self.timestep)
         if(plot):

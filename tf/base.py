@@ -6,6 +6,8 @@ from utils import *
 import os
 from plot.viewCam import plotDetCam
 import scipy.sparse as sp
+import json
+import time
 #import matplotlib.pyplot as plt
 
 class TFObj(object):
@@ -17,6 +19,7 @@ class TFObj(object):
     def __init__(self, params, inputShape):
         self.loadParams(params)
         self.makeDirs()
+        #self.printParamsStr(params)
 
         #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpuPercent)
         #config = tf.ConfigProto(gpu_options=gpu_options)
@@ -28,6 +31,19 @@ class TFObj(object):
         self.buildModel(inputShape)
         self.initialize()
         self.writeSummary()
+
+    #def genParamsStr(self, params):
+    #    pdb.set_trace()
+    #    paramsStr = json.dumps(params, indent=2)
+    #    return paramsStr
+
+    #def printParamsStr(self, params):
+    #    outstr = self.genParamsStr(params)
+    #    outfile = self.runDir+"/params.json"
+    #    #Will replace current file if found
+    #    f = open(outfile, 'w')
+    #    f.write(outstr)
+    #    f.close()
 
     def loadParams(self, params):
         #Initialize tf parameters here
@@ -131,6 +147,7 @@ class TFObj(object):
     #If pre is False, will train entire network
     #If pre is True, will train only fully connected network
     def trainModel(self, dataObj, save, plot):
+        progress_time = time.time()
         #Define session
         for i in range(self.innerSteps):
             #Get data from dataObj
@@ -141,7 +158,9 @@ class TFObj(object):
                 summary = self.sess.run(self.mergedSummary, feed_dict=feedDict)
                 self.train_writer.add_summary(summary, self.timestep)
             if(i%self.progress == 0):
-                print "Timestep ", self.timestep
+                tmp_time = time.time()
+                print "Timestep ", self.timestep, ":", float(self.progress)/(tmp_time - progress_time), " iterations per second"
+                progress_time = tmp_time
             self.timestep+=1
         if(save):
             save_path = self.saver.save(self.sess, self.saveFile, global_step=self.timestep, write_meta_graph=False)
