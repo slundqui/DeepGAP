@@ -3,7 +3,7 @@ matplotlib.use('Agg')
 import numpy as np
 import matplotlib.pyplot as plt
 import pdb
-from util import calcStats, calcBatchAuc
+from util import calcBatchAuc
 
 if __name__ == "__main__":
     baseDir = "/media/data/slundquist/mountData/DeepGAP/"

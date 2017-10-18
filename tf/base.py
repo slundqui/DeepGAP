@@ -8,6 +8,7 @@ from plot.viewCam import plotDetCam
 import scipy.sparse as sp
 import json
 import time
+from plot.plotScripts.util import calcStats, calcAuc
 #import matplotlib.pyplot as plt
 
 class TFObj(object):
@@ -245,6 +246,27 @@ class TFObj(object):
         np.save(fn, outGt)
         fn = self.runDir + "evalEstIdxs.npy"
         np.save(fn, outEst)
+
+        #Compute score
+        numThresh = 50
+        estMin = outEst.min()
+        estMax = outEst.max()
+
+        precision = np.zeros((numThresh,))
+        recall = np.zeros((numThresh,))
+        fpr = np.zeros((numThresh,))
+
+        thresh = np.linspace(estMin-1e-6, estMax+1e-6, num=numThresh)
+        for j, t in enumerate(thresh):
+            (p, r, f) = calcStats(outEst, outGt, t)
+            precision[j] = p
+            recall[j] = r
+            fpr[j] = f
+
+        auc = calcAuc(precision[None, :], recall[None, :])[0]
+        fn = self.runDir + "auc.txt"
+        with open(fn, 'w') as f:
+            f.write(str(auc))
 
         #Return output data
         return (outGt, outEst)
