@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 #import matplotlib.pyplot as plt
 from dataObj.pv_image import kittiVidPvObj
+from dataObj.multithread import multithread
 from tf.SupVid_kitti import SupVid_kitti
 from tf.SupVidMLP_kitti import SupVidMLP_kitti
 from tf.SupVidMLP2_kitti import SupVidMLP2_kitti
@@ -48,43 +49,45 @@ trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames
 testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=False, rangeIdx=testRange, binClass=[1, 2, 3])
 
 loadStrSuffix = [
-        "10100",
+        "30100",
         "10100",
         "10100",
         ]
 
+preloadWeights = True #True is preloading weights, false is random weights
+batchSize = 16
+
 device = "/gpu:1"
 
-for i in range(6, 7):
-    #runSuffix = "run"+str(i)
-    runSuffix = "pretrain_500_run"+str(i)
+for i in range(1, 7):
+    runSuffix = "direct_unsup_all_run"+str(i)
     stage1_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
         #Inner run directory
-        'runDir':          "/eval_sup_kitti_vid_4x8_boot_1_bin_" + runSuffix + "/",
+        'runDir':          "/eval_sup_kitti_vid_boot_1_" + runSuffix + "/",
         'tfDir':           "/tfout",
         #Save parameters
         'ckptDir':         "/checkpoints/",
         'saveFile':        "/save-model",
-        'savePeriod':      100, #In terms of displayPeriod
+        'savePeriod':      50, #In terms of displayPeriod
         #output plots directory
         'plotDir':         "plots/",
         'plotPeriod':      100, #With respect to displayPeriod
         #Progress step
-        'progress':        1,
+        'progress':        10,
         #Controls how often to write out to tensorboard
-        'writeStep':       50, #300,
+        'writeStep':       100, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_1_bin_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[0],
+        'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_boot_1_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[0],
         #Device to run on
         'device':          device,
         #Num iterations
         'outerSteps':      302, #1000000,
         'innerSteps':      100, #300,
         #Batch size
-        'batchSize':       16,
+        'batchSize':       batchSize,
         #Learning rate for optimizer
         'learningRate':    1e-4,
         'beta1' :          .9,
@@ -105,7 +108,8 @@ for i in range(6, 7):
         'plotInd': False,
         'plotFM': False,
         'augment': False,
-        'loadHiddenWeights': False,
+        'loadHiddenWeights': preloadWeights,
+        'hiddenWeightsFile' : "/home/slundquist/mountData/tfSparseCode/lca_adam_kitti_weights/checkpoints/weights_300.npy",
     }
 
     #Allocate tensorflow object
@@ -124,29 +128,29 @@ for i in range(6, 7):
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
         #Inner run directory
-        'runDir':          "/eval_sup_kitti_vid_4x8_boot_2_bin_" + runSuffix + "/",
+        'runDir':          "/eval_sup_kitti_vid_boot_2_" + runSuffix + "/",
         'tfDir':           "/tfout",
         #Save parameters
         'ckptDir':         "/checkpoints/",
         'saveFile':        "/save-model",
-        'savePeriod':      100, #In terms of displayPeriod
+        'savePeriod':      50, #In terms of displayPeriod
         #output plots directory
         'plotDir':         "plots/",
         'plotPeriod':      100, #With respect to displayPeriod
         #Progress step
-        'progress':        1,
+        'progress':        10,
         #Controls how often to write out to tensorboard
-        'writeStep':       50, #300,
+        'writeStep':       100, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_2_bin_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[1],
+        'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_boot_2_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[1],
         #Device to run on
         'device':          device,
         #Num iterations
         'outerSteps':      302, #1000000,
         'innerSteps':      100, #300,
         #Batch size
-        'batchSize':       16,
+        'batchSize':       batchSize,
         #Learning rate for optimizer
         'learningRate':    1e-4,
         'beta1' :          .9,
@@ -185,29 +189,29 @@ for i in range(6, 7):
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
         #Inner run directory
-        'runDir':          "/eval_sup_kitti_vid_4x8_boot_3_bin_" + runSuffix + "/",
+        'runDir':          "/eval_sup_kitti_vid_boot_3_" + runSuffix + "/",
         'tfDir':           "/tfout",
         #Save parameters
         'ckptDir':         "/checkpoints/",
         'saveFile':        "/save-model",
-        'savePeriod':      100, #In terms of displayPeriod
+        'savePeriod':      50, #In terms of displayPeriod
         #output plots directory
         'plotDir':         "plots/",
         'plotPeriod':      100, #With respect to displayPeriod
         #Progress step
-        'progress':        1,
+        'progress':        10,
         #Controls how often to write out to tensorboard
-        'writeStep':       50, #300,
+        'writeStep':       100, #300,
         #Flag for loading weights from checkpoint
         'load':            True,
-        'loadFile':        "/media/data/slundquist/mountData/DeepGAP/sup_kitti_vid_4x8_boot_3_bin_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[2],
+        'loadFile':        "/home/slundquist/mountData/DeepGAP/sup_kitti_vid_boot_3_" + runSuffix + "/checkpoints/save-model-"+loadStrSuffix[2],
         #Device to run on
         'device':          device,
         #Num iterations
         'outerSteps':      302, #1000000,
         'innerSteps':      100, #300,
         #Batch size
-        'batchSize':       16,
+        'batchSize':       batchSize,
         #Learning rate for optimizer
         'learningRate':    1e-4,
         'beta1' :          .9,
@@ -239,4 +243,5 @@ for i in range(6, 7):
     print "Done run"
 
     tfObj.closeSess()
+
 
