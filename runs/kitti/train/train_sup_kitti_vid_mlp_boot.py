@@ -31,7 +31,7 @@ dncFilenames= [
             "/home/slundquist/mountData/kitti_pv/objdet_train2/DNCPixels2.pvp",
         ]
 
-trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list.txt"
+trainRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_train_list_4000.txt"
 testRangeFn = "/home/slundquist/mountData/kitti_pv/kitti_objdet_test_list.txt"
 
 trainf = open(trainRangeFn, 'r')
@@ -47,30 +47,30 @@ testRange = [int(l) for l in testLines]
 #Get object from which tensorflow will pull data from
 trainDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=trainRange, binClass=[1, 2, 3])
 testDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=True, rangeIdx=testRange, binClass=[1, 2, 3])
-#evalDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=False, rangeIdx=testRange, binClass=[1, 2, 3])
+evalDataObj = kittiVidPvObj(trainInputs, trainGts, trainFilenames, dncFilenames, None, shuffle=False, rangeIdx=testRange, binClass=[1, 2, 3])
 
 numTotalSteps = [
-        302,
+        102,
         102,
         102,
         ]
 
 loadStrSuffix = [
         None,
-        "30100",
+        "10100",
         "10100",
         ]
 
 device = '/gpu:0'
 pretrainRun = False #True is no training 1st layer
-preloadWeights = False #True is preloading weights, false is random weights
+preloadWeights = True #True is preloading weights, false is random weights
 batchSize = 16
 
-#trainDataObj = multithread(trainDataObj, batchSize)
-#testDataObj = multithread(testDataObj, batchSize)
+trainDataObj = multithread(trainDataObj, batchSize)
+testDataObj = multithread(testDataObj, batchSize)
 
-for i in range(4, 7):
-    runSuffix = "direct_sup_all_run"+str(i)
+for i in range(1, 7):
+    runSuffix = "direct_finetune_4000_run"+str(i)
     stage1_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
@@ -85,7 +85,7 @@ for i in range(4, 7):
         'plotDir':         "plots/",
         'plotPeriod':      100, #With respect to displayPeriod
         #Progress step
-        'progress':        1,
+        'progress':        10,
         #Controls how often to write out to tensorboard
         'writeStep':       100, #300,
         #Flag for loading weights from checkpoint
@@ -131,13 +131,13 @@ for i in range(4, 7):
 
     print "Done init"
     tfObj.runModel(trainDataObj, testDataObj = testDataObj)
-    #tfObj.evalModelBatch(testDataObj = evalDataObj)
+    tfObj.evalModelBatch(testDataObj = evalDataObj)
     print "Done run"
 
     tfObj.closeSess()
 
     #Reset index
-    #evalDataObj.imgIdx = 0
+    evalDataObj.imgIdx = 0
     stage2_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
@@ -194,13 +194,13 @@ for i in range(4, 7):
 
     print "Done init"
     tfObj.runModel(trainDataObj, testDataObj = testDataObj)
-    #tfObj.evalModelBatch(testDataObj = evalDataObj)
+    tfObj.evalModelBatch(testDataObj = evalDataObj)
     print "Done run"
 
     tfObj.closeSess()
 
     #Reset index
-    #evalDataObj.imgIdx = 0
+    evalDataObj.imgIdx = 0
     stage3_params = {
         #Base output directory
         'outDir':          "/home/slundquist/mountData/DeepGAP/",
@@ -255,7 +255,7 @@ for i in range(4, 7):
 
     print "Done init"
     tfObj.runModel(trainDataObj, testDataObj = testDataObj)
-    #tfObj.evalModelBatch(testDataObj = evalDataObj)
+    tfObj.evalModelBatch(testDataObj = evalDataObj)
     print "Done run"
 
     tfObj.closeSess()

@@ -18,6 +18,10 @@ class TFObj(object):
 
     #Constructor takes inputShape, which is a 3 tuple (ny, nx, nf) based on the size of the image being fed in
     def __init__(self, params, inputShape):
+        #Set random seed
+        tf.set_random_seed(time.time()*1000000)
+
+
         self.loadParams(params)
         self.makeDirs()
         #self.printParamsStr(params)
